@@ -1,6 +1,8 @@
-import { useReducer } from 'react';
+import { useEffect, useReducer, useRef } from 'react';
 import { StepIndicator } from './components/StepIndicator';
 import { CandidatesScreen } from './screens/CandidatesScreen';
+import { DoneScreen } from './screens/DoneScreen';
+import { EditScreen } from './screens/EditScreen';
 import { InputScreen } from './screens/InputScreen';
 import { initialState, reducer, type Screen } from './state';
 
@@ -14,13 +16,25 @@ const TITLE_OF: Record<Screen, string> = {
 
 export function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const go = (screen: Screen) => dispatch({ type: 'go', screen });
+  const heading = useRef<HTMLHeadingElement>(null);
+
+  // 화면이 바뀌면 제목으로 포커스를 옮겨 키보드·화면낭독 사용자가 새 화면을 알 수 있게 한다
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (state.screen !== 'done') heading.current?.focus();
+  }, [state.screen]);
 
   return (
     <div className="app-shell">
       <header className="app-header">
         <div className="page-title-wrap between">
-          <h1 className="h-tit">{TITLE_OF[state.screen]}</h1>
+          <h1 className="h-tit" ref={heading} tabIndex={-1}>
+            {TITLE_OF[state.screen]}
+          </h1>
         </div>
         <StepIndicator current={STEP_OF[state.screen]} />
       </header>
@@ -29,24 +43,16 @@ export function App() {
         {state.screen === 'candidates' && state.complaint && state.result && (
           <CandidatesScreen complaint={state.complaint} result={state.result} dispatch={dispatch} />
         )}
-        {/* 화면 ③·완료는 4단계에서 채운다 */}
-        <div className="app-actions">
-          {state.screen === 'edit' && (
-            <>
-              <button type="button" className="krds-btn secondary" onClick={() => go('candidates')}>
-                다른 후보 고르기
-              </button>
-              <button type="button" className="krds-btn primary" onClick={() => go('done')}>
-                전송
-              </button>
-            </>
-          )}
-          {state.screen === 'done' && (
-            <button type="button" className="krds-btn primary" onClick={() => dispatch({ type: 'reset' })}>
-              새 민원 입력
-            </button>
-          )}
-        </div>
+        {state.screen === 'edit' && state.complaint && state.selected && state.result && (
+          <EditScreen
+            key={state.selected.draftId}
+            complaint={state.complaint}
+            selected={state.selected}
+            evidence={state.result.evidence}
+            dispatch={dispatch}
+          />
+        )}
+        {state.screen === 'done' && <DoneScreen finalAnswer={state.finalAnswer ?? ''} dispatch={dispatch} />}
       </main>
     </div>
   );
