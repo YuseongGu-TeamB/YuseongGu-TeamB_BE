@@ -12,3 +12,4 @@ uploads/
 pgdata/
 apps/api/src/generated/
 *.log
+out/

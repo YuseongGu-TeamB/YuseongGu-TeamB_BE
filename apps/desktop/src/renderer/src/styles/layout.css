@@ -1,0 +1,33 @@
+/* 레이아웃(그리드·여백)만. 색·글꼴 크기는 KRDS 컴포넌트와 토큰에 맡긴다. */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--krds-gap-5);
+  padding: var(--krds-padding-5) var(--krds-padding-8);
+}
+.app-main {
+  flex: 1;
+  padding: var(--krds-padding-5) var(--krds-padding-8) var(--krds-padding-10);
+}
+.app-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--krds-gap-5);
+}
+.app-split {
+  display: grid;
+  grid-template-columns: minmax(280px, 2fr) 3fr;
+  gap: var(--krds-gap-8);
+  align-items: start;
+}
+.app-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--krds-gap-3);
+}

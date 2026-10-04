@@ -14,6 +14,7 @@
     "db:test:up": "docker compose up -d --wait db-test",
     "db:migrate": "pnpm --filter @minwon/api exec prisma migrate deploy",
     "seed:import": "pnpm --filter @minwon/api seed:import",
-    "smoke": "pnpm --filter @minwon/api smoke"
+    "smoke": "pnpm --filter @minwon/api smoke",
+    "desktop:dev": "pnpm --filter @minwon/desktop dev"
   }
 }

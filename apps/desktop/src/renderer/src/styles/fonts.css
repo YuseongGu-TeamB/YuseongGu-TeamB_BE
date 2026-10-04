@@ -1,0 +1,22 @@
+/*
+ * KRDS 토큰(--krds-typo-font-type: Pretendard GOV)이 가리키는 글꼴을 패키지의 로컬 파일로 선언한다.
+ * krds-uiux 1.1.0에는 woff 파일만 있고 @font-face 선언이 없어 여기서 연결만 한다(외부 웹폰트 호출 없음).
+ */
+@font-face {
+  font-family: 'Pretendard GOV';
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../../../node_modules/krds-uiux/resources/fonts/PretendardGOV-Regular.subset.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Pretendard GOV';
+  font-weight: 500;
+  font-display: swap;
+  src: url('../../../../node_modules/krds-uiux/resources/fonts/PretendardGOV-Medium.subset.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Pretendard GOV';
+  font-weight: 700;
+  font-display: swap;
+  src: url('../../../../node_modules/krds-uiux/resources/fonts/PretendardGOV-Bold.subset.woff2') format('woff2');
+}
