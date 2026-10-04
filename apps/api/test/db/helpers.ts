@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { Candidate } from '@minwon/contracts';
 import { config } from 'dotenv';
@@ -60,7 +61,7 @@ export async function createDraft(s: Services, answers: string[]) {
 
 export async function regenerate(s: Services, complaintId: string, answers: string[]) {
   const run = await s.prisma.generationRun.create({ data: { complaintId, model: 'test-model', status: 'done' } });
-  await s.state.transition(complaintId, { to: 'draft', runId: run.id, model: 'test-model', candidates: candidates(...answers) });
+  await s.state.transition(complaintId, { to: 'draft', runId: run.id, model: 'test-model', drafts: candidates(...answers).map((candidate) => ({ id: randomUUID(), candidate })) });
   return run;
 }
 

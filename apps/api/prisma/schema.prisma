@@ -81,6 +81,8 @@ model Draft {
   id           String   @id @default(uuid()) @db.Uuid
   complaintId  String   @map("complaint_id") @db.Uuid
   runId        String   @map("run_id") @db.Uuid
+  /// 같은 실행(run) 안에서 후보 순서 (응답 봉투의 candidates·drafts 순서)
+  position     Int      @default(0)
   approach     Approach
   answer       String
   usedSources  String[] @map("used_sources")

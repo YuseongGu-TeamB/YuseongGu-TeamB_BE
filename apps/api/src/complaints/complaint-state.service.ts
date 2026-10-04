@@ -6,8 +6,8 @@ import { ComplaintNotFoundError, TransitionPreconditionError } from './errors';
 import { assertTransition } from './state-machine';
 
 export type TransitionInput =
-  /** 생성 완료: 새 후보 저장. 재생성이면 기존 후보는 superseded로 보관 */
-  | { to: 'draft'; runId: string; model: string; candidates: Candidate[] }
+  /** 생성 완료: 새 후보 저장(draft id는 호출자가 정해 응답 봉투의 순서와 맞춘다). 재생성이면 기존 후보는 superseded로 보관 */
+  | { to: 'draft'; runId: string; model: string; drafts: { id: string; candidate: Candidate }[] }
   /** 선택된 후보(민원당 1개) 기준 승인 */
   | { to: 'approved' }
   /** 발송: 코퍼스 추가. embedding은 트랜잭션 전에 content(= edited_answer ?? answer)로 계산해 넘긴다 */
@@ -67,7 +67,7 @@ export class ComplaintStateService {
   }
 
   private async saveCandidates(tx: Tx, complaintId: string, input: Extract<TransitionInput, { to: 'draft' }>) {
-    if (input.candidates.length === 0) {
+    if (input.drafts.length === 0) {
       throw new TransitionPreconditionError('저장할 답변 후보가 없습니다.');
     }
     await tx.draft.updateMany({
@@ -75,7 +75,9 @@ export class ComplaintStateService {
       data: { superseded: true, selected: false },
     });
     await tx.draft.createMany({
-      data: input.candidates.map((c) => ({
+      data: input.drafts.map(({ id, candidate: c }, position) => ({
+        id,
+        position,
         complaintId,
         runId: input.runId,
         model: input.model,
