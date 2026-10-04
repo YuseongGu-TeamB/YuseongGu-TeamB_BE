@@ -51,7 +51,7 @@ export const EnvSchema = z.object({
   PORT: int(3000),
   CORS_ORIGINS: csv('http://localhost:5173'),
   COMPLAINT_MAX_CHARS: int(5000),
-  REQUIRE_LOCAL: csv('db,embedding'),
+  REQUIRE_LOCAL: csv('db,embedding').pipe(z.array(z.enum(['db', 'embedding', 'llm']))),
 
   DEV_API_ENABLED: z
     .enum(['true', 'false'])

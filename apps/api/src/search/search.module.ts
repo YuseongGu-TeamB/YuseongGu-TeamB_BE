@@ -1,19 +1,20 @@
 import { Module } from '@nestjs/common';
 import { ENV, type Env } from '../config/env';
+import { CorpusModule } from '../corpus/corpus.module';
 import { MockSearchEngine } from './mock-search.engine';
 import { SEARCH_ENGINE } from './search.port';
+import { VectorSearchEngine } from './vector-search.engine';
 
 @Module({
+  imports: [CorpusModule],
   providers: [
     MockSearchEngine,
+    VectorSearchEngine,
     {
       provide: SEARCH_ENGINE,
-      inject: [ENV, MockSearchEngine],
-      useFactory: (env: Env, mock: MockSearchEngine) => {
-        if (env.SEARCH_ENGINE === 'mock') return mock;
-        // vector 구현은 3단계(임베딩 + pgvector 검색)에서 추가
-        throw new Error('SEARCH_ENGINE=vector 는 아직 구현되지 않았습니다. 지금은 SEARCH_ENGINE=mock 으로 실행하세요.');
-      },
+      inject: [ENV, MockSearchEngine, VectorSearchEngine],
+      useFactory: (env: Env, mock: MockSearchEngine, vector: VectorSearchEngine) =>
+        env.SEARCH_ENGINE === 'mock' ? mock : vector,
     },
   ],
   exports: [SEARCH_ENGINE],

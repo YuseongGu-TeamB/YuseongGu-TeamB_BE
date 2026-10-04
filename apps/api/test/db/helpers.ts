@@ -5,6 +5,7 @@ import { config } from 'dotenv';
 import pgvector from 'pgvector';
 import { ComplaintStateService } from '../../src/complaints/complaint-state.service';
 import { SendService } from '../../src/complaints/send.service';
+import { loadEnv } from '../../src/config/env';
 import { CorpusRepository } from '../../src/corpus/corpus.repository';
 import type { EmbeddingProvider } from '../../src/corpus/embedding.port';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -32,8 +33,9 @@ export function makeServices() {
   const corpus = new CorpusRepository(prisma);
   const state = new ComplaintStateService(prisma, corpus);
   const embedding = new FakeEmbedding();
-  const send = new SendService(prisma, state, embedding);
-  return { prisma, corpus, state, embedding, send };
+  const env = loadEnv();
+  const send = new SendService(prisma, state, embedding, env);
+  return { prisma, corpus, state, embedding, send, env };
 }
 
 export async function resetDb(prisma: PrismaService): Promise<void> {

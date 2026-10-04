@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ENV, type Env } from '../config/env';
 import { EMBEDDING_PROVIDER, EmbeddingProvider } from '../corpus/embedding.port';
 import { PrismaService } from '../prisma/prisma.service';
 import { ComplaintStateService } from './complaint-state.service';
@@ -17,6 +18,7 @@ export class SendService {
     private readonly prisma: PrismaService,
     private readonly state: ComplaintStateService,
     @Inject(EMBEDDING_PROVIDER) private readonly embedding: EmbeddingProvider,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   async send(complaintId: string): Promise<void> {
@@ -39,7 +41,7 @@ export class SendService {
     } catch (e) {
       throw new EmbeddingFailedError(e);
     }
-    if (!vector?.length) throw new EmbeddingFailedError();
+    if (vector?.length !== this.env.EMBEDDING_DIM) throw new EmbeddingFailedError();
 
     await this.state.transition(complaintId, {
       to: 'sent',

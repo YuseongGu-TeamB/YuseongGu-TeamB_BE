@@ -252,6 +252,15 @@ describe('API (접수 → 생성 → SSE → 선택·수정 → 승인 → 발�
       await http().get('/complaints/00000000-0000-4000-8000-000000000000/progress').expect(404);
     });
 
+    it('GET /health: 구성요소별 연결 상태와 로컬 여부', async () => {
+      const r = await http().get('/health').expect(200);
+      expect(r.body).toMatchObject({ status: expect.stringMatching(/^(ok|degraded)$/), search_engine: 'mock' });
+      expect(r.body.components.db).toMatchObject({ ok: true, local: true, host: 'localhost', required_local: true });
+      expect(r.body.components.embedding).toMatchObject({ ok: true, local: true, required_local: true });
+      expect(r.body.components.llm).toMatchObject({ local: true, required_local: false, model: 'qwen2.5:7b' });
+      expect(JSON.stringify(r.body)).not.toContain('OPENAI_API_KEY');
+    });
+
     it('Swagger 문서가 /docs에 있다', async () => {
       await http().get('/docs').expect(200);
     });
