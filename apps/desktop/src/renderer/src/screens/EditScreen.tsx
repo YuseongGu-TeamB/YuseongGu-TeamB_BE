@@ -177,6 +177,7 @@ export function EditScreen({ complaint, selected, evidence, dispatch }: Props) {
         {error && send !== 'approved-send-failed' && <Notice kind="error">{error}</Notice>}
 
         <div className="app-actions" aria-live="polite">
+          {working && <Spinner label={send === 'approving' ? '승인 중' : '전송 중'} />}
           <button type="button" className="krds-btn secondary" onClick={() => void chooseOther()} disabled={approved || working}>
             다른 후보 고르기
           </button>
@@ -188,7 +189,6 @@ export function EditScreen({ complaint, selected, evidence, dispatch }: Props) {
           >
             전송
           </button>
-          {working && <Spinner label={send === 'approving' ? '승인 중' : '전송 중'} />}
         </div>
       </div>
 

@@ -29,6 +29,8 @@
 .app-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end; /* 다 읽고 난 시선·커서 위치(오른쪽 아래)에 버튼을 둔다 */
   gap: var(--krds-gap-3);
 }
 /* 민원 원문·답변 본문의 줄바꿈 유지 */

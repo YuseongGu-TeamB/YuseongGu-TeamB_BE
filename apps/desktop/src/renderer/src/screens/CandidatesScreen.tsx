@@ -114,7 +114,7 @@ export function CandidatesScreen({ complaint, result, dispatch }: Props) {
                         </>
                       )}
                     </div>
-                    <div className="card-btn">
+                    <div className="card-btn app-actions">
                       <button
                         type="button"
                         className="krds-btn primary"
