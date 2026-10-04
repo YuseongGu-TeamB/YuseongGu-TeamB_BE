@@ -43,6 +43,8 @@ const MAX_ATTEMPTS = 2; // 잘림·파싱 실패·검증 실패 시 1회 재시�
 /**
  * OpenAI 호환 요청(messages + response_format)으로 구조화 출력을 받는다.
  * - json_schema(strict) 요청 자체가 실패하면 json_object + 스키마 system 메시지로 재요청(폴백)
+ * - json_schema 요청은 성공했는데 응답이 스키마를 따르지 않으면(서버가 json_schema를 무시) 재시도는 폴백으로 보내고,
+ *   그 모델은 이후 처음부터 폴백으로 요청한다(매번 두 번 호출하지 않도록). 전환은 로그로 남는다.
  * - 응답에서 JSON 객체 추출(코드펜스 제거) → zod 검증
  * - finish_reason=length·파싱 실패·검증 실패는 1회 재시도 후 LlmOutputError
  * 로그에는 단계명·소요 시간·토큰 수·finish_reason·폴백 여부만 남긴다(민원 원문·답변 본문 금지).
@@ -51,6 +53,8 @@ const MAX_ATTEMPTS = 2; // 잘림·파싱 실패·검증 실패 시 1회 재시�
 export class StructuredLlm {
   private readonly logger = new Logger('LLM');
   private readonly extraBody: Record<string, unknown>;
+  /** json_schema를 무시하는 것으로 확인된 모델 → 처음부터 json_object 폴백 */
+  private readonly schemaIgnored = new Set<string>();
 
   constructor(
     @Inject(LLM_CLIENT) private readonly client: ChatClient,
@@ -67,6 +71,11 @@ export class StructuredLlm {
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       const t0 = Date.now();
       const { res, mode } = await this.request(c);
+      const markSchemaIgnored = () => {
+        if (mode !== 'json_schema' || this.schemaIgnored.has(c.model)) return;
+        this.schemaIgnored.add(c.model);
+        this.logger.warn(`model=${c.model} json_schema 응답이 스키마를 따르지 않음 → 이후 json_object 폴백 사용`);
+      };
       const ms = Date.now() - t0;
       totalMs += ms;
       const tokens = res.usage?.completion_tokens;
@@ -88,6 +97,7 @@ export class StructuredLlm {
       } catch {
         lastReason = 'JSON 파싱 실패';
         this.logger.warn(`stage=${c.stage} attempt=${attempt} JSON 파싱 실패`);
+        markSchemaIgnored();
         continue;
       }
       const parsed = c.validator.safeParse(raw);
@@ -95,6 +105,7 @@ export class StructuredLlm {
         const fields = [...new Set(parsed.error.issues.map((i) => i.path.join('.') || '(root)'))].join(',');
         lastReason = `스키마 불일치(${fields})`;
         this.logger.warn(`stage=${c.stage} attempt=${attempt} 스키마 불일치 fields=${fields}`);
+        markSchemaIgnored();
         continue;
       }
       return { data: parsed.data, ms: totalMs, tokens: totalTokens, attempts: attempt };
@@ -109,19 +120,21 @@ export class StructuredLlm {
       temperature: this.env.LLM_TEMPERATURE,
       ...this.extraBody,
     };
-    try {
-      const res = await this.client.chat.completions.create({
-        ...base,
-        messages: [
-          { role: 'system', content: c.system },
-          { role: 'user', content: c.user },
-        ],
-        response_format: { type: 'json_schema', json_schema: { name: 'response', schema: c.schema, strict: true } },
-      });
-      return { res, mode: 'json_schema' };
-    } catch (e) {
-      if (!isFallbackable(e)) throw toUnavailable(e, this.env);
-      this.logger.warn(`stage=${c.stage} json_schema 요청 실패(status=${statusOf(e)}) → json_object 폴백`);
+    if (!this.schemaIgnored.has(c.model)) {
+      try {
+        const res = await this.client.chat.completions.create({
+          ...base,
+          messages: [
+            { role: 'system', content: c.system },
+            { role: 'user', content: c.user },
+          ],
+          response_format: { type: 'json_schema', json_schema: { name: 'response', schema: c.schema, strict: true } },
+        });
+        return { res, mode: 'json_schema' };
+      } catch (e) {
+        if (!isFallbackable(e)) throw toUnavailable(e, this.env);
+        this.logger.warn(`stage=${c.stage} json_schema 요청 실패(status=${statusOf(e)}) → json_object 폴백`);
+      }
     }
     try {
       const res = await this.client.chat.completions.create({

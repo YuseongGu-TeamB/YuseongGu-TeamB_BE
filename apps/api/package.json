@@ -12,7 +12,11 @@
     "test": "jest --runInBand",
     "test:unit": "jest --selectProjects unit",
     "test:db": "jest --selectProjects db --runInBand",
-    "seed:import": "nest build && node dist/cli/seed-import.js"
+    "seed:import": "nest build && node dist/cli/seed-import.js",
+    "smoke": "nest build && node dist/smoke/smoke.js",
+    "postinstall": "prisma generate",
+    "start:prod": "node dist/main.js",
+    "prebuild": "prisma generate"
   },
   "dependencies": {
     "@minwon/contracts": "workspace:*",

@@ -74,6 +74,28 @@ describe('StructuredLlm', () => {
     expect(fake.calls[1].messages[0].content).toMatch(/^다음 JSON 스키마를 따라 응답하라/);
   });
 
+  it('json_schema를 무시하는 서버: 재시도는 폴백으로 보내고, 그 모델은 이후 처음부터 폴백', async () => {
+    // json_schema 모드에선 필드명을 지어내고(서버가 스키마를 무시), 스키마를 system에 명시하면 맞춘다
+    const fake = new FakeChatClient((_s, body) =>
+      body.response_format?.type === 'json_schema' ? json({ 값: 1 }) : { content: '```json\n{"a": 7}\n```' },
+    );
+    const llm = new StructuredLlm(fake.asClient(), env());
+    const first = await call(llm);
+    expect(first).toMatchObject({ data: { a: 7 }, attempts: 2 });
+    expect(fake.calls.map((c) => c.response_format?.type)).toEqual(['json_schema', 'json_object']);
+
+    fake.calls = [];
+    const second = await call(llm);
+    expect(second).toMatchObject({ data: { a: 7 }, attempts: 1 });
+    expect(fake.calls.map((c) => c.response_format?.type)).toEqual(['json_object']);
+  });
+
+  it('잘림(length)만으로는 폴백으로 바꾸지 않는다', async () => {
+    const fake = new FakeChatClient((_s, _b, n) => (n === 1 ? { content: '{"a":', finish_reason: 'length' } : json({ a: 1 })));
+    await call(new StructuredLlm(fake.asClient(), env()));
+    expect(fake.calls.map((c) => c.response_format?.type)).toEqual(['json_schema', 'json_schema']);
+  });
+
   it('연결 실패는 폴백 없이 한국어 에러', async () => {
     const fake = new FakeChatClient(() => ({ throw: new OpenAI.APIConnectionError({ message: 'ECONNREFUSED' }) }));
     await expect(call(new StructuredLlm(fake.asClient(), env()))).rejects.toThrow(LlmUnavailableError);
