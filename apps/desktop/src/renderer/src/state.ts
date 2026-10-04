@@ -1,10 +1,20 @@
+import type { GenerateApiResponse } from './types';
+
 export type Screen = 'input' | 'candidates' | 'edit' | 'done';
 
 export interface AppState {
   screen: Screen;
+  /** 접수된 민원 (생성 시작 후) */
+  complaint?: { id: string; content: string };
+  /** 최신 생성 결과 */
+  result?: GenerateApiResponse;
 }
 
-export type Action = { type: 'go'; screen: Screen } | { type: 'reset' };
+export type Action =
+  | { type: 'go'; screen: Screen }
+  | { type: 'complaint'; id: string; content: string }
+  | { type: 'generated'; result: GenerateApiResponse }
+  | { type: 'reset' };
 
 export const initialState: AppState = { screen: 'input' };
 
@@ -12,6 +22,10 @@ export function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'go':
       return { ...state, screen: action.screen };
+    case 'complaint':
+      return { ...state, complaint: { id: action.id, content: action.content } };
+    case 'generated':
+      return { ...state, result: action.result, screen: 'candidates' };
     case 'reset':
       return initialState;
   }

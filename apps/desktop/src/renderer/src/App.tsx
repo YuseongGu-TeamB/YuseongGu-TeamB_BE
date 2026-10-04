@@ -1,5 +1,6 @@
 import { useReducer } from 'react';
 import { StepIndicator } from './components/StepIndicator';
+import { InputScreen } from './screens/InputScreen';
 import { initialState, reducer, type Screen } from './state';
 
 const STEP_OF: Record<Screen, 1 | 2 | 3 | 'done'> = { input: 1, candidates: 2, edit: 3, done: 'done' };
@@ -23,13 +24,10 @@ export function App() {
         <StepIndicator current={STEP_OF[state.screen]} />
       </header>
       <main className="app-main">
-        {/* 1단계: 빈 화면 이동만. 실제 화면은 2~4단계에서 채운다 */}
+        {state.screen === 'input' && <InputScreen dispatch={dispatch} complaintId={state.complaint?.id} />}
+        {/* 화면 ②③·완료는 3~4단계에서 채운다 */}
         <div className="app-actions">
-          {state.screen === 'input' && (
-            <button type="button" className="krds-btn primary" onClick={() => go('candidates')}>
-              답변 후보 만들기
-            </button>
-          )}
+          {state.screen === 'candidates' && <p>후보 {state.result?.result.candidates.length ?? 0}개</p>}
           {state.screen === 'candidates' && (
             <button type="button" className="krds-btn primary" onClick={() => go('edit')}>
               이 답변으로 수정하기
