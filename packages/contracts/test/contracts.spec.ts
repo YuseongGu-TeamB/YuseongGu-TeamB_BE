@@ -1,8 +1,11 @@
 import { z } from 'zod';
 import {
   CandidateSchema,
+  ComplaintViewSchema,
+  GenerateAcceptedSchema,
   GenerateApiResponseSchema,
   GenerateResponseSchema,
+  HealthSchema,
   SearchResultSchema,
   SOURCE_REGEX,
   StatusSchema,
@@ -19,6 +22,9 @@ describe('계약 스냅샷', () => {
     ['GenerateResponse', GenerateResponseSchema],
     ['Status', StatusSchema],
     ['GenerateApiResponse', GenerateApiResponseSchema],
+    ['GenerateAccepted', GenerateAcceptedSchema],
+    ['ComplaintView', ComplaintViewSchema],
+    ['Health', HealthSchema],
   ])('%s', (_name, schema) => {
     expect(z.toJSONSchema(schema)).toMatchSnapshot();
   });

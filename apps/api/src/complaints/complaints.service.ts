@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { Approach, GenerateApiResponse, Status } from '@minwon/contracts';
+import type { Approach, ComplaintView, DraftView, Status } from '@minwon/contracts';
 import { z } from 'zod';
 import { ENV, type Env } from '../config/env';
 import { RunResultBuilder } from '../generation/run-result';
@@ -20,36 +20,6 @@ export class DraftNotEditableError extends Error {
     super(message);
     this.name = 'DraftNotEditableError';
   }
-}
-
-export interface DraftView {
-  draft_id: string;
-  approach: Approach;
-  answer: string;
-  used_sources: string[];
-  assumptions: string[];
-  edited_answer: string | null;
-  selected: boolean;
-  model: string;
-}
-
-export interface ComplaintView {
-  complaint_id: string;
-  content: string;
-  status: Status;
-  created_at: string;
-  /** 현재 후보(superseded 제외), 생성 순서대로 */
-  drafts: DraftView[];
-  /** 최신 생성 실행. 없으면 null */
-  generation: {
-    run_id: string;
-    status: 'running' | 'done' | 'error';
-    model: string;
-    started_at: string;
-    finished_at: string | null;
-    error: string | null;
-    result: GenerateApiResponse | null;
-  } | null;
 }
 
 export const draftPatchSchema = (maxChars: number) =>

@@ -4,6 +4,7 @@ import { ComplaintPanel } from '../components/ComplaintPanel';
 import { EvidenceList } from '../components/EvidenceList';
 import { Notice } from '../components/Notice';
 import { ProgressList } from '../components/ProgressList';
+import { SearchedEvidence } from '../components/SearchedEvidence';
 import { useGeneration } from '../generation';
 import type { Action } from '../state';
 import { APPROACH_LABEL, type Accepted, type GenerateApiResponse } from '../types';
@@ -142,6 +143,8 @@ export function CandidatesScreen({ complaint, result, dispatch }: Props) {
             ))}
           </ul>
         )}
+
+        {!regenerating && <SearchedEvidence evidence={result.evidence} />}
 
         {candidates.length > 0 && <div className="app-actions">{regenerateButton}</div>}
       </div>

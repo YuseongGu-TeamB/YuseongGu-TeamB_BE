@@ -1,19 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { Health, HealthComponent } from '@minwon/contracts';
 import OpenAI from 'openai';
 import { ENV, type Env } from '../config/env';
 import { EMBEDDING_PROVIDER, type EmbeddingProvider } from '../corpus/embedding.port';
 import { PrismaService } from '../prisma/prisma.service';
 import { endpointOf, hostOf, isLocalHost, type Component } from './locality';
 
-export interface ComponentHealth {
-  ok: boolean;
-  /** 호스트가 loopback/사설 IP인가 */
-  local: boolean;
-  host: string;
-  required_local: boolean;
-  model?: string;
-  error?: string;
-}
 
 const CHECK_TIMEOUT_MS = 5_000;
 
@@ -25,7 +17,7 @@ export class HealthService {
     @Inject(ENV) private readonly env: Env,
   ) {}
 
-  async check() {
+  async check(): Promise<Health> {
     const [db, llm, embedding] = await Promise.all([
       this.component('db', () => this.prisma.$queryRaw`SELECT 1`),
       this.component('llm', () => this.llmModels(), this.env.MODEL),
@@ -49,7 +41,7 @@ export class HealthService {
     await client.models.list();
   }
 
-  private async component(c: Component, probe: () => Promise<unknown>, model?: string): Promise<ComponentHealth> {
+  private async component(c: Component, probe: () => Promise<unknown>, model?: string): Promise<HealthComponent> {
     const host = hostOf(endpointOf(this.env, c));
     const base = { local: await isLocalHost(host), host, required_local: this.env.REQUIRE_LOCAL.includes(c), ...(model && { model }) };
     try {

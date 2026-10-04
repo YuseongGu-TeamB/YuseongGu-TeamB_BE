@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { GenerateAccepted } from '@minwon/contracts';
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ComplaintStateService } from '../complaints/complaint-state.service';
 import { ComplaintNotFoundError } from '../complaints/errors';
@@ -9,11 +10,6 @@ import { LlmOutputError, LlmUnavailableError } from './llm.errors';
 import { GenerationPipeline } from './pipeline';
 import { ProgressHub } from './progress.hub';
 import { RunResultBuilder } from './run-result';
-
-export interface GenerateAccepted {
-  complaint_id: string;
-  run_id: string;
-}
 
 /**
  * 생성 요청을 받아 즉시 run_id를 돌려주고, 파이프라인은 백그라운드에서 돌린다(backend-spec 4번).

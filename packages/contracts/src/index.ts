@@ -71,3 +71,70 @@ export const GenerateApiResponseSchema = z.strictObject({
   evidence: z.array(SearchResultSchema),
 });
 export type GenerateApiResponse = z.infer<typeof GenerateApiResponseSchema>;
+
+// ── API 응답 (계약 밖, api와 desktop이 함께 쓰는 형태를 한 곳에서 정의) ──────
+
+/** POST /complaints/quick, POST /complaints/:id/generate → 202 */
+export const GenerateAcceptedSchema = z.strictObject({
+  complaint_id: z.string(),
+  run_id: z.string(),
+});
+export type GenerateAccepted = z.infer<typeof GenerateAcceptedSchema>;
+
+/** 답변 후보 1개의 화면용 형태(PATCH /drafts/:id 응답, GET /complaints/:id의 drafts) */
+export const DraftViewSchema = z.strictObject({
+  draft_id: z.string(),
+  approach: ApproachSchema,
+  answer: z.string(),
+  used_sources: z.array(SourceSchema),
+  assumptions: z.array(z.string()),
+  edited_answer: z.string().nullable(),
+  selected: z.boolean(),
+  model: z.string(),
+});
+export type DraftView = z.infer<typeof DraftViewSchema>;
+
+export const RunStatusSchema = z.enum(['running', 'done', 'error']);
+export type RunStatus = z.infer<typeof RunStatusSchema>;
+
+/** GET /complaints/:id (및 POST /complaints, approve, send 응답) */
+export const ComplaintViewSchema = z.strictObject({
+  complaint_id: z.string(),
+  content: z.string(),
+  status: StatusSchema,
+  created_at: z.string(),
+  /** 현재 후보(superseded 제외), 생성 순서대로 */
+  drafts: z.array(DraftViewSchema),
+  /** 최신 생성 실행. 없으면 null */
+  generation: z
+    .strictObject({
+      run_id: z.string(),
+      status: RunStatusSchema,
+      model: z.string(),
+      started_at: z.string(),
+      finished_at: z.string().nullable(),
+      error: z.string().nullable(),
+      result: GenerateApiResponseSchema.nullable(),
+    })
+    .nullable(),
+});
+export type ComplaintView = z.infer<typeof ComplaintViewSchema>;
+
+export const HealthComponentSchema = z.strictObject({
+  ok: z.boolean(),
+  /** 호스트가 loopback/사설 IP인가 */
+  local: z.boolean(),
+  host: z.string(),
+  required_local: z.boolean(),
+  model: z.string().optional(),
+  error: z.string().optional(),
+});
+export type HealthComponent = z.infer<typeof HealthComponentSchema>;
+
+/** GET /health */
+export const HealthSchema = z.strictObject({
+  status: z.enum(['ok', 'degraded']),
+  search_engine: z.enum(['mock', 'vector']),
+  components: z.strictObject({ db: HealthComponentSchema, llm: HealthComponentSchema, embedding: HealthComponentSchema }),
+});
+export type Health = z.infer<typeof HealthSchema>;

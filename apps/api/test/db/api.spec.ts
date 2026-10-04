@@ -1,4 +1,10 @@
-import { GenerateApiResponseSchema } from '@minwon/contracts';
+import {
+  ComplaintViewSchema,
+  DraftViewSchema,
+  GenerateAcceptedSchema,
+  GenerateApiResponseSchema,
+  HealthSchema,
+} from '@minwon/contracts';
 import { type INestApplication, type LoggerService } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import OpenAI from 'openai';
@@ -87,10 +93,12 @@ describe('API (접수 → 생성 → SSE → 선택·수정 → 승인 → 발�
   it('전체 흐름: 생성 결과가 SSE done·GET에 같게 나오고, 발송하면 수정본이 코퍼스에 들어간다', async () => {
     const created = await http().post('/complaints').send({ content: COMPLAINT }).expect(201);
     expect(created.body).toMatchObject({ status: 'received', drafts: [], generation: null });
+    ComplaintViewSchema.parse(created.body); // 응답 형태 = contracts 스키마(strict)
     const id = created.body.complaint_id as string;
 
     const accepted = await generate(id);
     expect(accepted).toEqual({ complaint_id: id, run_id: expect.any(String) });
+    GenerateAcceptedSchema.parse(accepted);
 
     // 끝난 뒤 구독해도 지난 이벤트부터 받는다
     const sse = await http().get(`/complaints/${id}/progress`).expect(200).expect('content-type', /text\/event-stream/);
@@ -118,16 +126,20 @@ describe('API (접수 → 생성 → SSE → 선택·수정 → 승인 → 발�
 
     const view = await http().get(`/complaints/${id}`).expect(200);
     expect(view.body.status).toBe('draft');
+    ComplaintViewSchema.parse(view.body);
     expect(view.body.generation).toMatchObject({ run_id: accepted.run_id, status: 'done', result: done });
     expect(view.body.drafts.map((d: { draft_id: string }) => d.draft_id)).toEqual(done.drafts.map((d) => d.draft_id));
 
     const target = done.drafts[1].draft_id;
-    await http().patch(`/drafts/${target}`).send({ selected: true, edited_answer: '담당자 수정본입니다.' }).expect(200);
+    const patched = await http().patch(`/drafts/${target}`).send({ selected: true, edited_answer: '담당자 수정본입니다.' }).expect(200);
+    DraftViewSchema.parse(patched.body);
     await http().post(`/complaints/${id}/approve`).expect(200).expect((r) => expect(r.body.status).toBe('approved'));
     // 승인 후에는 수정 불가
     await http().patch(`/drafts/${target}`).send({ edited_answer: '또 수정' }).expect(409);
 
-    await http().post(`/complaints/${id}/send`).expect(200).expect((r) => expect(r.body.status).toBe('sent'));
+    const sentView = await http().post(`/complaints/${id}/send`).expect(200);
+    expect(sentView.body.status).toBe('sent');
+    ComplaintViewSchema.parse(sentView.body);
     const corpus = await prisma.corpusEntry.findMany();
     expect(corpus).toMatchObject([{ source: sentSource(id), content: '담당자 수정본입니다.', origin: 'sent' }]);
 
@@ -257,6 +269,7 @@ describe('API (접수 → 생성 → SSE → 선택·수정 → 승인 → 발�
 
     it('GET /health: 구성요소별 연결 상태와 로컬 여부', async () => {
       const r = await http().get('/health').expect(200);
+      HealthSchema.parse(r.body);
       expect(r.body).toMatchObject({ status: expect.stringMatching(/^(ok|degraded)$/), search_engine: 'mock' });
       expect(r.body.components.db).toMatchObject({ ok: true, local: true, host: 'localhost', required_local: true });
       expect(r.body.components.embedding).toMatchObject({ ok: true, local: true, required_local: true });
