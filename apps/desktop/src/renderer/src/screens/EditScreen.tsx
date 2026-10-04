@@ -103,7 +103,7 @@ export function EditScreen({ complaint, selected, evidence, dispatch }: Props) {
   return (
     <div className="app-split">
       <div className="app-stack">
-        <ComplaintPanel content={complaint.content} />
+        <ComplaintPanel content={complaint.content} defaultOpen />
         <section aria-labelledby={`${id}-ev`}>
           <h2 id={`${id}-ev`}>근거</h2>
           <EvidenceList sources={selected.candidate.used_sources} evidence={evidence} />

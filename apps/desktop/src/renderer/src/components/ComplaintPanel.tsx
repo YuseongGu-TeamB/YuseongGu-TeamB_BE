@@ -1,9 +1,10 @@
-/** 민원 원문(항상 표시). 화면 ②③ 왼쪽 */
-export function ComplaintPanel({ content }: { content: string }) {
+import { Disclosure } from './Disclosure';
+
+/** 민원 원문. 접고 펼칠 수 있다(화면 ②는 접힌 채로, 화면 ③은 펼친 채로 시작) */
+export function ComplaintPanel({ content, defaultOpen = false }: { content: string; defaultOpen?: boolean }) {
   return (
-    <section aria-labelledby="complaint-original">
-      <h2 id="complaint-original">민원 원문</h2>
+    <Disclosure label={`민원 원문 (${content.length.toLocaleString()}자)`} defaultOpen={defaultOpen}>
       <p className="app-pre">{content}</p>
-    </section>
+    </Disclosure>
   );
 }
