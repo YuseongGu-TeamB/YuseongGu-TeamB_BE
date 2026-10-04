@@ -63,6 +63,8 @@ model GenerationRun {
   failed             Json      @default("[]")
   /// [{ stage, ms, tokens? }]
   timings            Json      @default("[]")
+  /// 이 실행의 검색 결과 [{ source, content }] (근거 원문 표시용)
+  evidence           Json      @default("[]")
   /// 실패 시 담당자용 한국어 메시지 (민원 원문·답변 본문은 넣지 않는다)
   error              String?
   startedAt          DateTime  @default(now()) @map("started_at")

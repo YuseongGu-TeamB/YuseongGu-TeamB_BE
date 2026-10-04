@@ -30,6 +30,8 @@ export type PipelineEvent =
 
 export interface PipelineResult {
   result: GenerateResponse;
+  /** 이번 실행의 검색 결과 */
+  evidence: SearchResult[];
   failed: { approach: Approach; reason: string }[];
   timings: Timing[];
 }
@@ -125,6 +127,7 @@ export class GenerationPipeline {
         is_info_sufficient: analysis.is_answerable,
         insufficient_reason: analysis.missing_info.length > 0 ? analysis.missing_info.join('; ') : null,
       },
+      evidence: results,
       failed,
       timings,
     };

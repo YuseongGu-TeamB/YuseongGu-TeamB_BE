@@ -112,6 +112,9 @@ describe('API (접수 → 생성 → SSE → 선택·수정 → 승인 → 발�
     expect(done).toMatchObject({ complaint_id: id, status: 'draft', model: 'qwen2.5:7b', failed: [] });
     expect(done.result.candidates.map((c) => c.approach)).toEqual(['PROCEDURE_GUIDE', 'ONSITE_CHECK']);
     expect(done.drafts.map((d) => d.approach)).toEqual(['PROCEDURE_GUIDE', 'ONSITE_CHECK']);
+    // 봉투에 이 실행의 검색 결과(근거 원문)가 담긴다 — mock 검색 2건
+    expect(done.evidence.map((e) => e.source)).toEqual(['K-0001', 'K-0002']);
+    expect(done.evidence[0].content).toContain('저녁 유예');
 
     const view = await http().get(`/complaints/${id}`).expect(200);
     expect(view.body.status).toBe('draft');

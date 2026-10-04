@@ -12,6 +12,12 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 
 config({ path: path.resolve(__dirname, '../../../../.env'), quiet: true });
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? 'postgresql://app:app@localhost:5433/minwon_test';
+// 테스트는 개인 .env의 LLM 설정(시연용 클라우드 등)과 무관하게 같은 결과를 내야 한다. LLM 호출 자체는 가짜로 바꾼다.
+process.env.OPENAI_BASE_URL = 'http://localhost:11434/v1';
+process.env.OPENAI_API_KEY = 'ollama';
+process.env.MODEL = 'qwen2.5:7b';
+delete process.env.LLM_EXTRA_BODY;
+delete process.env.OLLAMA_OPTIONS;
 
 export const DIM = 1024;
 export const fixedVector = (seed = 1): number[] => Array.from({ length: DIM }, (_, i) => ((i * seed) % 7) / 7 + 0.01);

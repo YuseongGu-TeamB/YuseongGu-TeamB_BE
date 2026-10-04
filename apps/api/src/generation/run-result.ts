@@ -34,6 +34,7 @@ export class RunResultBuilder {
       drafts: run.drafts.map((d) => ({ draft_id: d.id, approach: d.approach })),
       failed: run.failed,
       timings: run.timings,
+      evidence: run.evidence,
     });
   }
 }

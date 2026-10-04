@@ -74,6 +74,26 @@ exports[`계약 스냅샷 GenerateApiResponse 1`] = `
       },
       "type": "array",
     },
+    "evidence": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string",
+          },
+          "source": {
+            "pattern": "^[A-Za-z0-9_-]{1,50}$",
+            "type": "string",
+          },
+        },
+        "required": [
+          "content",
+          "source",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
     "failed": {
       "items": {
         "additionalProperties": false,
@@ -201,6 +221,7 @@ exports[`계약 스냅샷 GenerateApiResponse 1`] = `
     "drafts",
     "failed",
     "timings",
+    "evidence",
   ],
   "type": "object",
 }

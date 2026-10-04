@@ -67,5 +67,7 @@ export const GenerateApiResponseSchema = z.strictObject({
   /** 생성 실패 후보 */
   failed: z.array(z.strictObject({ approach: ApproachSchema, reason: z.string() })),
   timings: z.array(z.strictObject({ stage: z.string(), ms: z.number(), tokens: z.number().optional() })),
+  /** 이 실행에서 쓴 검색 결과(근거 원문 표시용). 검색 계약 형태 그대로 */
+  evidence: z.array(SearchResultSchema),
 });
 export type GenerateApiResponse = z.infer<typeof GenerateApiResponseSchema>;

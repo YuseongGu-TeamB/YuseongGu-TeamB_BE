@@ -31,3 +31,9 @@
   flex-wrap: wrap;
   gap: var(--krds-gap-3);
 }
+/* 민원 원문·답변 본문의 줄바꿈 유지 */
+.app-pre {
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}

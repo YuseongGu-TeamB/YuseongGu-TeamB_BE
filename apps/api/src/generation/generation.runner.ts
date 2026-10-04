@@ -93,6 +93,7 @@ export class GenerationRunner implements OnModuleInit {
             insufficientReason: out.result.insufficient_reason ?? null,
             failed: out.failed,
             timings: out.timings,
+            evidence: out.evidence,
             finishedAt: new Date(),
           },
         });

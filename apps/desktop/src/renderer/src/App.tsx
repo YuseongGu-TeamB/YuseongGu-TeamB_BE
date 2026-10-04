@@ -1,5 +1,6 @@
 import { useReducer } from 'react';
 import { StepIndicator } from './components/StepIndicator';
+import { CandidatesScreen } from './screens/CandidatesScreen';
 import { InputScreen } from './screens/InputScreen';
 import { initialState, reducer, type Screen } from './state';
 
@@ -25,14 +26,11 @@ export function App() {
       </header>
       <main className="app-main">
         {state.screen === 'input' && <InputScreen dispatch={dispatch} complaintId={state.complaint?.id} />}
-        {/* 화면 ②③·완료는 3~4단계에서 채운다 */}
+        {state.screen === 'candidates' && state.complaint && state.result && (
+          <CandidatesScreen complaint={state.complaint} result={state.result} dispatch={dispatch} />
+        )}
+        {/* 화면 ③·완료는 4단계에서 채운다 */}
         <div className="app-actions">
-          {state.screen === 'candidates' && <p>후보 {state.result?.result.candidates.length ?? 0}개</p>}
-          {state.screen === 'candidates' && (
-            <button type="button" className="krds-btn primary" onClick={() => go('edit')}>
-              이 답변으로 수정하기
-            </button>
-          )}
           {state.screen === 'edit' && (
             <>
               <button type="button" className="krds-btn secondary" onClick={() => go('candidates')}>
