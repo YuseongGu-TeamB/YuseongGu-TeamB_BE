@@ -39,3 +39,36 @@
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
+/* 긴 민원·답변도 한 번에 보이도록: KRDS textarea 높이 변수를 풀고 내용에 맞춰 늘어나게 한다 */
+.app-textarea-grow {
+  --krds-input--textarea-size-height: auto;
+  field-sizing: content;
+  min-height: 40vh;
+}
+/* 후보 카드: KRDS structured list(3열 그리드)를 가로 한 줄로 흘리고, 3개를 넘으면 옆으로 넘겨 본다 */
+.app-cards {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 2 * var(--krds-structured-list--wrap-gap)) / 3);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: var(--krds-padding-3);
+}
+.app-cards > li {
+  scroll-snap-align: start;
+}
+/* 카드 높이를 맞추고 선택 버튼을 카드 맨 아래에 둔다 */
+.app-cards > li > .in {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.app-cards .card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--krds-gap-3);
+}
+.app-cards .c-btn {
+  margin-top: auto;
+}

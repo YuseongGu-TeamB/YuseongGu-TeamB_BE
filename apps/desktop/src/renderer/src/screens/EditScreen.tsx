@@ -123,9 +123,8 @@ export function EditScreen({ complaint, selected, evidence, dispatch }: Props) {
             <div className="textarea-wrap">
               <textarea
                 id={`${id}-answer`}
-                className="krds-input"
+                className="krds-input app-textarea-grow"
                 value={text}
-                rows={12}
                 maxLength={COMPLAINT_MAX_CHARS}
                 disabled={approved || working}
                 onChange={(e) => {

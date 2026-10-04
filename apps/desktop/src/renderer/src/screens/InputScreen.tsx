@@ -49,11 +49,10 @@ export function InputScreen({ dispatch, complaintId }: { dispatch: (a: Action) =
           <div className="textarea-wrap">
             <textarea
               id={`${id}-complaint`}
-              className="krds-input"
+              className="krds-input app-textarea-grow"
               placeholder="민원 원문을 붙여넣으세요."
               value={content}
               maxLength={COMPLAINT_MAX_CHARS}
-              rows={14}
               disabled={busy}
               onChange={(e) => setContent(e.target.value)}
               aria-describedby={`${id}-count`}

@@ -39,7 +39,7 @@
   - 답변 본문(`answer`)
   - **근거**: `used_sources`의 각 source에 대해 근거 원문을 펼쳐 볼 수 있게(아래 4번의 `evidence` 사용). 근거가 없으면 "근거 없음" 표시.
   - **검토 필요**: `assumptions`가 있으면 경고 스타일로 목록 표시("근거 없이 들어간 내용").
-  - "이 답변으로 수정하기" 버튼 → `PATCH /drafts/:id { selected: true }` 후 화면 ③.
+  - "이 답변 선택" 버튼 → `PATCH /drafts/:id { selected: true }` 후 화면 ③.
 - 생성에 실패한 후보(`failed`)는 회색 카드로 "생성 실패: {reason}"만 표시.
 - "후보 다시 만들기" 버튼 → `POST /complaints/:id/generate` → 화면 ①과 같은 진행 표시 → 새 후보로 교체.
 

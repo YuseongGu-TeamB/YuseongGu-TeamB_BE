@@ -16,8 +16,9 @@ interface Props {
 }
 
 /**
- * 화면 ② 후보 선택. 후보 카드는 KRDS structured list(html/code/structured_list.html).
- * structured list의 c-txt는 3줄로 잘리므로 답변 본문은 card-body 안 일반 문단으로 전문을 보인다.
+ * 화면 ② 후보 선택. 위에 민원 원문, 아래에 후보 카드를 가로로 나란히(3개 보이고 더 있으면 옆으로 넘김).
+ * 후보 카드는 KRDS structured list(html/code/structured_list.html). c-txt는 3줄로 잘리므로 답변 본문은
+ * card-body 안 일반 문단으로 전문을 보이고, 선택 버튼은 KRDS의 주 동작 자리인 c-btn에 둔다.
  */
 export function CandidatesScreen({ complaint, result, dispatch }: Props) {
   const gen = useGeneration();
@@ -64,7 +65,7 @@ export function CandidatesScreen({ complaint, result, dispatch }: Props) {
   );
 
   return (
-    <div className="app-split">
+    <div className="app-stack">
       <ComplaintPanel content={complaint.content} />
 
       <div className="app-stack">
@@ -80,7 +81,7 @@ export function CandidatesScreen({ complaint, result, dispatch }: Props) {
         )}
 
         {!regenerating && (candidates.length > 0 || result.failed.length > 0) && (
-          <ul className="krds-structured-list">
+          <ul className="krds-structured-list app-cards" aria-label="답변 후보">
             {candidates.map((c, i) => {
               const draft = result.drafts[i];
               const titleId = `cand-${draft.draft_id}`;
@@ -113,17 +114,17 @@ export function CandidatesScreen({ complaint, result, dispatch }: Props) {
                           </ul>
                         </>
                       )}
-                    </div>
-                    <div className="card-btn app-actions">
-                      <button
-                        type="button"
-                        className="krds-btn primary"
-                        aria-describedby={titleId}
-                        disabled={busy}
-                        onClick={() => void choose(draft.draft_id, i)}
-                      >
-                        이 답변으로 수정하기
-                      </button>
+                      <div className="c-btn app-actions">
+                        <button
+                          type="button"
+                          className="krds-btn primary"
+                          aria-describedby={titleId}
+                          disabled={busy}
+                          onClick={() => void choose(draft.draft_id, i)}
+                        >
+                          이 답변 선택
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </li>
