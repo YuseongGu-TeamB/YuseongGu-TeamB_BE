@@ -9,6 +9,7 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "db:up": "docker compose up -d db",
-    "db:test:up": "docker compose up -d db-test"
+    "db:test:up": "docker compose up -d db-test",
+    "seed:import": "pnpm --filter @minwon/api seed:import"
   }
 }

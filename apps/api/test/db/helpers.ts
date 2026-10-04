@@ -20,10 +20,13 @@ export const fixedVector = (seed = 1): number[] => Array.from({ length: DIM }, (
 export class FakeEmbedding implements EmbeddingProvider {
   readonly model = 'fake-embed';
   fail = false;
+  /** 이 문자열이 들어간 텍스트가 포함되면 그 호출은 실패 */
+  failOn?: string;
   calls: string[][] = [];
   async embed(texts: string[]): Promise<number[][]> {
     this.calls.push(texts);
     if (this.fail) throw new Error('embedding server down');
+    if (this.failOn && texts.some((t) => t.includes(this.failOn!))) throw new Error('embedding failed');
     return texts.map(() => fixedVector());
   }
 }

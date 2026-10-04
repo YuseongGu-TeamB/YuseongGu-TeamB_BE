@@ -69,6 +69,63 @@ export class CorpusRepository {
       LIMIT ${topK}`;
   }
 
+  // ── 개발자 시드 (backend-spec 6-2) ───────────────────────────
+  // 시드는 RDB 답변초안과 무관한 별도 입력이다. origin='sent' 항목은 이 경로로 바꾸거나 지우지 않는다.
+
+  async findBySources(sources: string[]): Promise<{ source: string; origin: 'seed' | 'sent'; content: string }[]> {
+    if (sources.length === 0) return [];
+    return this.prisma.corpusEntry.findMany({
+      where: { source: { in: sources } },
+      select: { source: true, origin: true, content: true },
+    });
+  }
+
+  /** 기존 S-#### 중 가장 큰 번호 (없으면 0) */
+  async maxSeedNumber(): Promise<number> {
+    const [row] = await this.prisma.$queryRaw<{ max: number | null }[]>`
+      SELECT max(substring(source from '^S-([0-9]+)$')::int) AS max FROM corpus_entries`;
+    return Number(row.max ?? 0);
+  }
+
+  /** 시드 추가·갱신. 같은 source의 sent 항목은 절대 덮어쓰지 않는다(WHERE origin='seed'). */
+  async upsertSeed(tx: Tx, row: { source: string; content: string; embedding: number[]; embeddingModel: string }) {
+    const n = await tx.$executeRaw`
+      INSERT INTO corpus_entries (source, content, origin, embedding, embedding_model)
+      VALUES (${row.source}, ${row.content}, 'seed', ${pgvector.toSql(row.embedding)}::vector, ${row.embeddingModel})
+      ON CONFLICT (source) DO UPDATE
+        SET content = EXCLUDED.content, embedding = EXCLUDED.embedding,
+            embedding_model = EXCLUDED.embedding_model, updated_at = now()
+        WHERE corpus_entries.origin = 'seed'`;
+    if (n !== 1) throw new Error(`시드가 아닌 항목과 source가 겹칩니다: ${row.source}`);
+  }
+
+  /** mode=replace: origin='seed'만 지운다. 발송으로 쌓인 항목은 건드리지 않는다. */
+  async deleteAllSeeds(tx: Tx): Promise<number> {
+    return tx.$executeRaw`DELETE FROM corpus_entries WHERE origin = 'seed'`;
+  }
+
+  async deleteSeed(source: string): Promise<'deleted' | 'not_found' | 'not_seed'> {
+    const n = await this.prisma.$executeRaw`DELETE FROM corpus_entries WHERE source = ${source} AND origin = 'seed'`;
+    if (n === 1) return 'deleted';
+    return (await this.prisma.corpusEntry.count({ where: { source } })) > 0 ? 'not_seed' : 'not_found';
+  }
+
+  async list(origin?: 'seed' | 'sent') {
+    return this.prisma.corpusEntry.findMany({
+      where: origin ? { origin } : {},
+      select: { source: true, content: true, origin: true, embeddingModel: true, createdAt: true },
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  /** 재임베딩: 내용은 그대로 두고 벡터와 모델명만 바꾼다 */
+  async updateEmbedding(source: string, embedding: number[], embeddingModel: string): Promise<void> {
+    await this.prisma.$executeRaw`
+      UPDATE corpus_entries SET embedding = ${pgvector.toSql(embedding)}::vector,
+             embedding_model = ${embeddingModel}, updated_at = now()
+      WHERE source = ${source}`;
+  }
+
   /** 마이그레이션에 고정된 embedding 컬럼의 차원 */
   async columnDimension(): Promise<number> {
     const [row] = await this.prisma.$queryRaw<{ dim: number }[]>`

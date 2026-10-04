@@ -58,6 +58,9 @@ export const EnvSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
   DEV_API_KEY: z.string().optional(),
+}).refine((e) => !e.DEV_API_ENABLED || !!e.DEV_API_KEY, {
+  path: ['DEV_API_KEY'],
+  message: 'DEV_API_ENABLED=true면 DEV_API_KEY가 있어야 합니다',
 });
 
 export type Env = z.infer<typeof EnvSchema>;

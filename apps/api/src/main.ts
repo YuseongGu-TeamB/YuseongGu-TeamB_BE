@@ -11,7 +11,7 @@ import { ENV, type Env } from './config/env';
 config({ path: path.resolve(__dirname, '../../../.env'), quiet: true });
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule.forRoot());
   configureApp(app);
   await app.listen(app.get<Env>(ENV).PORT);
 }

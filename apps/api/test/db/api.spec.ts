@@ -52,7 +52,7 @@ describe('API (접수 → 생성 → SSE → 선택·수정 → 승인 → 발�
 
   beforeAll(async () => {
     process.env.SEARCH_ENGINE = 'mock';
-    const mod = await Test.createTestingModule({ imports: [AppModule] })
+    const mod = await Test.createTestingModule({ imports: [AppModule.forRoot()] })
       .overrideProvider(LLM_CLIENT)
       .useValue(fake.asClient())
       .overrideProvider(EMBEDDING_PROVIDER)

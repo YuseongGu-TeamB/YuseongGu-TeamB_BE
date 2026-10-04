@@ -21,6 +21,14 @@ const STATUS_BY_NAME: Record<string, number> = {
   EmbeddingFailedError: HttpStatus.SERVICE_UNAVAILABLE,
   LlmUnavailableError: HttpStatus.SERVICE_UNAVAILABLE,
   LlmOutputError: HttpStatus.BAD_GATEWAY,
+  SeedFileError: HttpStatus.BAD_REQUEST,
+  SeedNotFoundError: HttpStatus.NOT_FOUND,
+  SeedNotDeletableError: HttpStatus.CONFLICT,
+};
+
+/** 프레임워크가 영어로 던지는 에러의 한국어 문구 */
+const KOREAN_BY_STATUS: Partial<Record<number, string>> = {
+  [HttpStatus.PAYLOAD_TOO_LARGE]: '업로드 파일이 허용 용량(5MB)을 넘습니다.',
 };
 
 @Catch()
@@ -47,7 +55,9 @@ export function toErrorBody(e: unknown): ErrorBody {
     return {
       statusCode: status,
       error: (obj.error as string) ?? HttpStatus[status] ?? 'Error',
-      message: Array.isArray(obj.message) ? obj.message.join(', ') : ((obj.message as string) ?? e.message),
+      message:
+        KOREAN_BY_STATUS[status] ??
+        (Array.isArray(obj.message) ? obj.message.join(', ') : ((obj.message as string) ?? e.message)),
       ...(obj.details !== undefined && { details: obj.details }),
     };
   }
