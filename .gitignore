@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+output/
+.env
+.env.*
+!.env.example
+# 업로드 임시 파일
+tmp/
+uploads/
+# DB 데이터 볼륨(바인드 마운트를 쓰는 경우)
+pgdata/
+apps/api/src/generated/
+*.log

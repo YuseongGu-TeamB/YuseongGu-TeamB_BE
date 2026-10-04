@@ -1,0 +1,304 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`계약 스냅샷 Candidate 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "answer": {
+      "type": "string",
+    },
+    "approach": {
+      "enum": [
+        "PROCEDURE_GUIDE",
+        "ONSITE_CHECK",
+        "IMMEDIATE_ACTION",
+        "NOT_ELIGIBLE",
+      ],
+      "type": "string",
+    },
+    "assumptions": {
+      "items": {
+        "type": "string",
+      },
+      "type": "array",
+    },
+    "used_sources": {
+      "items": {
+        "pattern": "^[A-Za-z0-9_-]{1,50}$",
+        "type": "string",
+      },
+      "type": "array",
+    },
+  },
+  "required": [
+    "answer",
+    "approach",
+    "used_sources",
+    "assumptions",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`계약 스냅샷 GenerateApiResponse 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "complaint_id": {
+      "type": "string",
+    },
+    "drafts": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "approach": {
+            "enum": [
+              "PROCEDURE_GUIDE",
+              "ONSITE_CHECK",
+              "IMMEDIATE_ACTION",
+              "NOT_ELIGIBLE",
+            ],
+            "type": "string",
+          },
+          "draft_id": {
+            "type": "string",
+          },
+        },
+        "required": [
+          "draft_id",
+          "approach",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "failed": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "approach": {
+            "enum": [
+              "PROCEDURE_GUIDE",
+              "ONSITE_CHECK",
+              "IMMEDIATE_ACTION",
+              "NOT_ELIGIBLE",
+            ],
+            "type": "string",
+          },
+          "reason": {
+            "type": "string",
+          },
+        },
+        "required": [
+          "approach",
+          "reason",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "model": {
+      "type": "string",
+    },
+    "result": {
+      "additionalProperties": false,
+      "properties": {
+        "candidates": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "answer": {
+                "type": "string",
+              },
+              "approach": {
+                "enum": [
+                  "PROCEDURE_GUIDE",
+                  "ONSITE_CHECK",
+                  "IMMEDIATE_ACTION",
+                  "NOT_ELIGIBLE",
+                ],
+                "type": "string",
+              },
+              "assumptions": {
+                "items": {
+                  "type": "string",
+                },
+                "type": "array",
+              },
+              "used_sources": {
+                "items": {
+                  "pattern": "^[A-Za-z0-9_-]{1,50}$",
+                  "type": "string",
+                },
+                "type": "array",
+              },
+            },
+            "required": [
+              "answer",
+              "approach",
+              "used_sources",
+              "assumptions",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "insufficient_reason": {
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "is_info_sufficient": {
+          "type": "boolean",
+        },
+      },
+      "required": [
+        "candidates",
+        "is_info_sufficient",
+      ],
+      "type": "object",
+    },
+    "status": {
+      "enum": [
+        "received",
+        "draft",
+        "approved",
+        "sent",
+      ],
+      "type": "string",
+    },
+    "timings": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "ms": {
+            "type": "number",
+          },
+          "stage": {
+            "type": "string",
+          },
+          "tokens": {
+            "type": "number",
+          },
+        },
+        "required": [
+          "stage",
+          "ms",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+  },
+  "required": [
+    "complaint_id",
+    "status",
+    "model",
+    "result",
+    "drafts",
+    "failed",
+    "timings",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`계약 스냅샷 GenerateResponse 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "candidates": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "type": "string",
+          },
+          "approach": {
+            "enum": [
+              "PROCEDURE_GUIDE",
+              "ONSITE_CHECK",
+              "IMMEDIATE_ACTION",
+              "NOT_ELIGIBLE",
+            ],
+            "type": "string",
+          },
+          "assumptions": {
+            "items": {
+              "type": "string",
+            },
+            "type": "array",
+          },
+          "used_sources": {
+            "items": {
+              "pattern": "^[A-Za-z0-9_-]{1,50}$",
+              "type": "string",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "answer",
+          "approach",
+          "used_sources",
+          "assumptions",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "insufficient_reason": {
+      "type": [
+        "string",
+        "null",
+      ],
+    },
+    "is_info_sufficient": {
+      "type": "boolean",
+    },
+  },
+  "required": [
+    "candidates",
+    "is_info_sufficient",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`계약 스냅샷 SearchResult 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "content": {
+      "type": "string",
+    },
+    "source": {
+      "pattern": "^[A-Za-z0-9_-]{1,50}$",
+      "type": "string",
+    },
+  },
+  "required": [
+    "content",
+    "source",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`계약 스냅샷 Status 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "enum": [
+    "received",
+    "draft",
+    "approved",
+    "sent",
+  ],
+  "type": "string",
+}
+`;

@@ -1,0 +1,83 @@
+import path from 'node:path';
+import type { Candidate } from '@minwon/contracts';
+import { config } from 'dotenv';
+import pgvector from 'pgvector';
+import { ComplaintStateService } from '../../src/complaints/complaint-state.service';
+import { SendService } from '../../src/complaints/send.service';
+import { CorpusRepository } from '../../src/corpus/corpus.repository';
+import type { EmbeddingProvider } from '../../src/corpus/embedding.port';
+import { PrismaService } from '../../src/prisma/prisma.service';
+
+config({ path: path.resolve(__dirname, '../../../../.env'), quiet: true });
+process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? 'postgresql://app:app@localhost:5433/minwon_test';
+
+export const DIM = 1024;
+export const fixedVector = (seed = 1): number[] => Array.from({ length: DIM }, (_, i) => ((i * seed) % 7) / 7 + 0.01);
+
+/** 고정 벡터를 돌려주는 임베딩 mock. fail=true면 예외. */
+export class FakeEmbedding implements EmbeddingProvider {
+  readonly model = 'fake-embed';
+  fail = false;
+  calls: string[][] = [];
+  async embed(texts: string[]): Promise<number[][]> {
+    this.calls.push(texts);
+    if (this.fail) throw new Error('embedding server down');
+    return texts.map(() => fixedVector());
+  }
+}
+
+export function makeServices() {
+  const prisma = new PrismaService();
+  const corpus = new CorpusRepository(prisma);
+  const state = new ComplaintStateService(prisma, corpus);
+  const embedding = new FakeEmbedding();
+  const send = new SendService(prisma, state, embedding);
+  return { prisma, corpus, state, embedding, send };
+}
+
+export async function resetDb(prisma: PrismaService): Promise<void> {
+  await prisma.$executeRawUnsafe(
+    'TRUNCATE corpus_entries, drafts, generation_runs, complaints RESTART IDENTITY CASCADE',
+  );
+}
+
+export const candidates = (...answers: string[]): Candidate[] =>
+  answers.map((answer, i) => ({
+    answer,
+    approach: (['PROCEDURE_GUIDE', 'ONSITE_CHECK', 'IMMEDIATE_ACTION'] as const)[i % 3],
+    used_sources: [],
+    assumptions: [],
+  }));
+
+type Services = ReturnType<typeof makeServices>;
+
+/** 접수 → (생성 실행 기록) → draft. 상태 변경은 transition()만 사용한다. */
+export async function createDraft(s: Services, answers: string[]) {
+  const complaint = await s.prisma.complaint.create({ data: { content: '합성 민원: 불법주정차 단속 요청' } });
+  await regenerate(s, complaint.id, answers);
+  return complaint;
+}
+
+export async function regenerate(s: Services, complaintId: string, answers: string[]) {
+  const run = await s.prisma.generationRun.create({ data: { complaintId, model: 'test-model', status: 'done' } });
+  await s.state.transition(complaintId, { to: 'draft', runId: run.id, model: 'test-model', candidates: candidates(...answers) });
+  return run;
+}
+
+/** PATCH /drafts/:id 의 선택·수정에 해당 (상태 변경 아님) */
+export async function selectDraft(s: Services, complaintId: string, approach: string, editedAnswer?: string) {
+  const draft = await s.prisma.draft.findFirstOrThrow({
+    where: { complaintId, superseded: false, approach: approach as never },
+  });
+  await s.prisma.draft.update({ where: { id: draft.id }, data: { selected: true, editedAnswer } });
+  return draft;
+}
+
+export async function insertSeed(s: Services, source: string, content: string) {
+  await s.prisma.$executeRaw`
+    INSERT INTO corpus_entries (source, content, origin, embedding, embedding_model)
+    VALUES (${source}, ${content}, 'seed', ${pgvector.toSql(fixedVector(2))}::vector, 'fake-embed')`;
+}
+
+export const corpusContents = async (s: Services) =>
+  (await s.prisma.corpusEntry.findMany({ select: { content: true } })).map((r) => r.content);

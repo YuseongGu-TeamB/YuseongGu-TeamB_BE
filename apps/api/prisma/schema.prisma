@@ -1,0 +1,118 @@
+// RDB(민원·답변초안·상태) + 벡터DB(근거 코퍼스)를 PostgreSQL + pgvector 하나로 운영한다.
+// 접속 URL은 prisma.config.ts에서 읽는다.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// received → draft → approved → sent 만 허용. 전이는 ComplaintStateService.transition() 하나로만.
+enum ComplaintStatus {
+  received
+  draft
+  approved
+  sent
+}
+
+enum Approach {
+  PROCEDURE_GUIDE
+  ONSITE_CHECK
+  IMMEDIATE_ACTION
+  NOT_ELIGIBLE
+}
+
+enum RunStatus {
+  running
+  done
+  error
+}
+
+enum CorpusOrigin {
+  seed
+  sent
+}
+
+model Complaint {
+  id        String          @id @default(uuid()) @db.Uuid
+  content   String
+  status    ComplaintStatus @default(received)
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  runs   GenerationRun[]
+  drafts Draft[]
+
+  @@map("complaints")
+}
+
+/// 생성 1회 실행. GET /complaints/:id 가 최신 실행의 진행 상태·실패·소요 시간을 보여주기 위해 둔다.
+model GenerationRun {
+  id                 String    @id @default(uuid()) @db.Uuid
+  complaintId        String    @map("complaint_id") @db.Uuid
+  model              String
+  status             RunStatus @default(running)
+  isInfoSufficient   Boolean?  @map("is_info_sufficient")
+  insufficientReason String?   @map("insufficient_reason")
+  /// [{ approach, reason }]
+  failed             Json      @default("[]")
+  /// [{ stage, ms, tokens? }]
+  timings            Json      @default("[]")
+  /// 실패 시 담당자용 한국어 메시지 (민원 원문·답변 본문은 넣지 않는다)
+  error              String?
+  startedAt          DateTime  @default(now()) @map("started_at")
+  finishedAt         DateTime? @map("finished_at")
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  drafts    Draft[]
+
+  @@index([complaintId, startedAt])
+  @@map("generation_runs")
+}
+
+/// 답변 후보. 계약 Candidate 필드(answer, approach, used_sources, assumptions) + 검토용 부가 컬럼.
+/// 민원당 selected=true 는 최대 1개(마이그레이션의 부분 유니크 인덱스).
+model Draft {
+  id           String   @id @default(uuid()) @db.Uuid
+  complaintId  String   @map("complaint_id") @db.Uuid
+  runId        String   @map("run_id") @db.Uuid
+  approach     Approach
+  answer       String
+  usedSources  String[] @map("used_sources")
+  assumptions  String[]
+  editedAnswer String?  @map("edited_answer")
+  selected     Boolean  @default(false)
+  /// 재생성(draft → draft) 시 이전 후보는 지우지 않고 true로 보관
+  superseded   Boolean  @default(false)
+  model        String
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  complaint Complaint     @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  run       GenerationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId])
+  @@map("drafts")
+}
+
+/// 검색 코퍼스. 들어오는 경로는 (1) sent 전이 (2) 개발자 시드 둘뿐이다.
+/// embedding 컬럼은 Prisma가 다루지 못하므로 쓰기·검색은 CorpusRepository의 raw SQL로만 한다.
+model CorpusEntry {
+  id             Int                          @id @default(autoincrement())
+  source         String                       @unique
+  content        String
+  origin         CorpusOrigin
+  /// origin='sent'일 때 원 민원. 민원당 1건.
+  complaintId    String?                      @unique @map("complaint_id") @db.Uuid
+  embedding      Unsupported("vector(1024)")
+  embeddingModel String                       @map("embedding_model")
+  createdAt      DateTime                     @default(now()) @map("created_at")
+  updatedAt      DateTime                     @default(now()) @updatedAt @map("updated_at")
+
+  @@map("corpus_entries")
+}
