@@ -42,3 +42,10 @@ export const APPROACH_LABEL: Record<Approach, string> = {
   IMMEDIATE_ACTION: '즉시 조치 안내',
   NOT_ELIGIBLE: '요건 미충족 안내',
 };
+
+/** GET /health */
+export interface Health {
+  status: 'ok' | 'degraded';
+  search_engine: string;
+  components: Record<'db' | 'embedding' | 'llm', { ok: boolean; local: boolean; host: string; model?: string }>;
+}

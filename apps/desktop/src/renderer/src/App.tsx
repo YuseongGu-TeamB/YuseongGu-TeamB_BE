@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useRef } from 'react';
+import { HealthBadges } from './components/HealthBadges';
 import { StepIndicator } from './components/StepIndicator';
 import { CandidatesScreen } from './screens/CandidatesScreen';
 import { DoneScreen } from './screens/DoneScreen';
@@ -37,6 +38,7 @@ export function App() {
           </h1>
         </div>
         <StepIndicator current={STEP_OF[state.screen]} />
+        <HealthBadges />
       </header>
       <main className="app-main">
         {state.screen === 'input' && <InputScreen dispatch={dispatch} complaintId={state.complaint?.id} />}

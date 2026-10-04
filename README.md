@@ -15,6 +15,7 @@
 
 ```
 apps/api            NestJS 백엔드
+apps/desktop        담당자용 데스크톱(Electron + React, KRDS) — docs/frontend-spec.md
   prisma/           schema.prisma + 마이그레이션 (PostgreSQL + pgvector)
   src/generation/   생성 파이프라인, prompts.ts(프롬프트는 이 파일만 수정), LLM 호출
   src/search/       검색(SEARCH_ENGINE=mock|vector)
@@ -73,6 +74,23 @@ MODEL=gemma4:31b
 
 Ollama 클라우드는 `json_schema`를 받아도 스키마를 강제하지 않습니다. 서버는 응답을 zod로 검증하고, 스키마를 따르지 않는
 모델은 자동으로 `json_object` + 스키마 명시(폴백) 방식으로 바꿔 요청합니다. 로그에 `→ 이후 json_object 폴백 사용`이 한 번 찍히면 정상입니다.
+
+## 데스크톱 (apps/desktop)
+
+담당자 화면: **민원 붙여넣기 → 답변 후보 → 선택·수정 → 승인·전송 → 새 민원**. 요구사항은 [docs/frontend-spec.md](docs/frontend-spec.md).
+
+```bash
+pnpm dev            # 1) 백엔드 (http://localhost:3000)
+pnpm desktop:dev    # 2) 데스크톱 창 (렌더러 http://localhost:5173)
+```
+
+- API 주소는 `apps/desktop/.env`의 `VITE_API_BASE_URL`(기본 `http://localhost:3000`, 예시는 `apps/desktop/.env.example`).
+- 백엔드 `CORS_ORIGINS`에 `http://localhost:5173`이 있어야 합니다(기본값). 시연은 dev 모드로 하고, 빌드한 앱(`file://`)은 범위 밖입니다.
+- 헤더 오른쪽 배지: DB·임베딩·LLM이 **로컬/외부**인지와 연결 상태(`/health`, 30초마다 갱신).
+- 디자인은 KRDS(`krds-uiux`)의 `resources/css/component/output.css`와 로컬 PretendardGOV 글꼴만 씁니다. 외부 CDN·웹폰트 호출이 없습니다.
+- `pnpm desktop:dev`는 VSCode 등에서 물려받은 `ELECTRON_RUN_AS_NODE`를 지우고 실행합니다(이 값이 있으면 창이 뜨지 않음).
+
+**시연 순서(피드백 루프 확인)**: 민원을 넣고 후보 하나를 골라 수정·전송 → "새 민원 입력"으로 **같은 내용**을 다시 넣으면, 후보의 근거에 방금 전송한 답변(`A-…`)이 보입니다.
 
 ## 환경변수
 
