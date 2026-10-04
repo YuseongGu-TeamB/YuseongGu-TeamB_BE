@@ -34,12 +34,48 @@ describe('근거 enum 제한', () => {
     expect(candidateValidator(['K-0001'], 'ONSITE_CHECK').safeParse(ok).success).toBe(false);
   });
 
-  it('요청 스키마에도 enum으로 제한된다', async () => {
+  const writeCall = (fake: FakeChatClient) => {
+    const c = fake.calls.find((x) => JSON.stringify(x.messages).includes('현재 단계: 답변 작성'))!;
+    const schema = (c.response_format as unknown as { json_schema: { schema: { properties: { used_sources: unknown } } } })
+      .json_schema.schema;
+    return { user: c.messages.find((m) => m.role === 'user')!.content, usedSources: schema.properties.used_sources };
+  };
+
+  it('선별 단계 스키마는 검색 결과 전체로 enum 제한된다', async () => {
     const fake = new FakeChatClient(happyHandler(['PROCEDURE_GUIDE']));
     await pipeline(fake).run('민원', 'm');
-    const write = fake.calls.find((c) => JSON.stringify(c.messages).includes('현재 단계: 답변 작성'))!;
-    const schema = (write.response_format as unknown as { json_schema: { schema: { properties: { used_sources: unknown } } } }).json_schema.schema;
-    expect(schema.properties.used_sources).toMatchObject({ items: { enum: ['K-0001', 'K-0002'] } });
+    const select = fake.calls.find((x) => JSON.stringify(x.messages).includes('현재 단계: 근거 선별'))!;
+    expect(JSON.stringify(select.response_format)).toContain('"enum":["K-0001","K-0002"]');
+  });
+
+  it('답변 작성에는 선별된 근거만 넘기고 enum도 그 안으로 제한한다', async () => {
+    const fake = new FakeChatClient(happyHandler(['PROCEDURE_GUIDE'], { sources: ['K-0002'] }));
+    await pipeline(fake).run('민원', 'm');
+    const w = writeCall(fake);
+    expect(w.usedSources).toMatchObject({ items: { enum: ['K-0002'] } });
+    expect(w.user).toContain('- (K-0002)');
+    expect(w.user).not.toContain('K-0001');
+  });
+
+  it('선별된 근거가 없으면 근거 없이 작성하고 used_sources는 빈 배열만 허용', async () => {
+    const fake = new FakeChatClient(happyHandler(['PROCEDURE_GUIDE'], { sources: [] }));
+    const out = await pipeline(fake).run('민원', 'm');
+    const w = writeCall(fake);
+    expect(w.usedSources).toMatchObject({ maxItems: 0 });
+    expect(w.user).not.toContain('[근거 — 과거 승인 답변]');
+    expect(out.result.candidates[0].used_sources).toEqual([]);
+  });
+
+  it('선별되지 않은 source를 used_sources에 쓰면 그 후보는 실패한다', async () => {
+    const base = happyHandler(['PROCEDURE_GUIDE'], { sources: ['K-0002'] });
+    const fake = new FakeChatClient((stage) =>
+      stage.startsWith('write:')
+        ? json({ answer: '답변', approach: 'PROCEDURE_GUIDE', used_sources: ['K-0001'], assumptions: [] })
+        : base(stage),
+    );
+    const out = await pipeline(fake).run('민원', 'm');
+    expect(out.result.candidates).toEqual([]);
+    expect(out.failed[0].reason).toContain('스키마 불일치(used_sources');
   });
 });
 

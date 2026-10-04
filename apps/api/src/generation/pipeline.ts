@@ -67,6 +67,7 @@ export const candidateValidator = (sources: string[], approach: Approach) =>
 /**
  * 생성 파이프라인 (architecture ②~⑤, backend-spec 4번)
  *   1. 검색 → 2. 분석 → 3. 근거 선별 + 접근 결정 → 4. 접근 유형별 답변 작성(병렬, LLM_CONCURRENCY 한도)
+ *   4단계에는 3단계에서 선별한 근거만 넘긴다(선별된 것이 없으면 근거 없이 작성, used_sources는 빈 배열).
  * 지연이 측정되면 2·3단계를 한 호출로 합칠 수 있도록 단계를 함수로 나눠 둔다(미리 합치지 않는다).
  */
 @Injectable()
@@ -95,12 +96,17 @@ export class GenerationPipeline {
     const selection = await stage('select', () => this.select(complaint, context, analysis, sources, model));
     const approaches = selection.approaches.length > 0 ? [...new Set(selection.approaches)] : (['PROCEDURE_GUIDE'] as Approach[]);
 
+    // 답변 작성에는 3단계에서 선별한 근거만 넘긴다. used_sources도 선별된 source 안에서만 허용된다.
+    const selected = results.filter((r) => selection.selected_sources.includes(r.source));
+    const selectedSources = selected.map((r) => r.source);
+    const selectedContext = P.formatContext(selected);
+
     const failed: PipelineResult['failed'] = [];
     const written = await mapLimit(approaches, this.env.LLM_CONCURRENCY, async (approach) => {
       const name = `write:${approach}`;
       emit({ type: 'stage_started', stage: name });
       try {
-        const r = await this.write(complaint, context, approach, analysis.request_summary, sources, model);
+        const r = await this.write(complaint, selectedContext, approach, analysis.request_summary, selectedSources, model);
         timings.push({ stage: name, ms: r.ms, ...(r.tokens !== undefined && { tokens: r.tokens }) });
         emit({ type: 'candidate_completed', approach, ms: r.ms, ...(r.tokens !== undefined && { tokens: r.tokens }) });
         return r.value;

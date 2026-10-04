@@ -90,6 +90,7 @@ GenerateResponse { candidates: Candidate[]; is_info_sufficient: boolean; insuffi
 2. 분석: `is_answerable`, `missing_info`, `request_summary`.
 3. 근거 선별 + 접근 유형 1~3개 결정(`selected_sources`, `approaches`). 비어 있으면 `['PROCEDURE_GUIDE']`.
 4. 접근 유형별 답변 작성 → 후보. 후보 1개 = 접근 유형 1개.
+   답변 작성에는 3단계에서 **선별된 근거만** 컨텍스트로 넘기고, `used_sources`도 선별된 source 안에서만 허용한다(선별된 것이 없으면 근거 없이 작성, `used_sources`는 빈 배열).
 - 지연이 문제로 **측정되면** 2·3단계를 한 호출로 합칠 수 있도록 단계를 함수 단위로 분리해 둔다. 미리 합치지 않는다.
 
 **가져올 것**
