@@ -7,8 +7,9 @@
 - 목표는 **시연 성공**. 시연에서 증명할 것은 세 가지다.
   1. 민원을 넣으면 답변 후보가 생성되고, 발송된 답변이 다시 근거로 쌓인다.
   2. **임베딩·벡터DB·RDB·API는 GPU 없는 개발 PC에서 로컬로** 돈다.
-  3. 생성 LLM은 OpenAI 호환 엔드포인트라 로컬 ollama든 외부 GPU 서버든 **설정만으로** 바뀐다.
-     개발 PC에 GPU가 없어 시연에서는 외부 엔드포인트를 쓰며, **14B와 32B를 같은 민원으로 비교해 최소 32B가 필요함**을 근거로 보인다(6-3).
+  3. 생성 LLM은 OpenAI 호환 엔드포인트라 로컬 ollama든 외부 서버든 **설정만으로** 바뀐다.
+     개발 PC에 GPU가 없어 시연에서는 **Ollama 클라우드의 `gemma4:31b`**를 쓴다. 개발 중에는 로컬 `qwen2.5:7b`. `.env`의 `MODEL`(과 엔드포인트)만 바꿔 전환한다.
+     모델 크기 비교는 하지 않는다(3b·7b의 한계는 레거시 Python 실험에서 이미 확인, 6-3).
   분석 화면·분석 API는 만들지 않는다. 인증, 다중 사용자, 운영 배포, 성능 최적화는 범위 밖.
 - 운영 서버 OS는 미정이며 **Linux를 기본 가정**한다. Windows 대응은 README 메모 수준으로만 둔다.
 - 참고용 원본(`generate.py`, `prompts.py`)은 `reference/python/`에 있으며 읽기 전용이다.
@@ -63,7 +64,7 @@ GenerateResponse { candidates: Candidate[]; is_info_sufficient: boolean; insuffi
   GenerateApiResponse {
     complaint_id: string;
     status: Status;
-    model: string;                                  // 이번 생성에 쓴 모델(6-3)
+    model: string;                                  // 이번 생성에 쓴 모델(= MODEL)
     result: GenerateResponse;                       // 계약 그대로
     drafts: { draft_id: string; approach: Approach }[]; // 후보와 같은 순서, PATCH용 id
     failed: { approach: Approach; reason: string }[];   // 생성 실패 후보
@@ -104,6 +105,11 @@ GenerateResponse { candidates: Candidate[]; is_info_sufficient: boolean; insuffi
    프롬프트는 `apps/api/src/generation/prompts.ts` 한 파일에 모은다(실험 시 이 파일만 수정).
 3. **근거 enum 제한**(`_id_field` 방식), **`assumptions`**(근거 없이 넣은 내용을 모델이 스스로 적는 필드).
 4. **폴백**: `json_schema(strict)` 요청이 실패하면 `json_object` + 스키마를 system 메시지로 명시해 재요청.
+   폴백 경로를 탔는지 로그에 남긴다(실제로 쓰이는지 확인용).
+   - **응답 검증(필수)**: Ollama 클라우드는 `json_schema`를 받아도 스키마를 강제하지 않는다(실측: `gemma4:31b`는 일반 문장이나
+     ```` ```json ```` 코드펜스로 감싼 JSON을 돌려주고, 필드를 빠뜨리거나 이름을 바꾸기도 한다). 그래서 응답이 200이어도 그대로 믿지 않는다.
+     응답에서 코드펜스를 벗기고 JSON 객체를 추출한 뒤 **zod로 검증**(근거 enum 제한 포함)한다. 실패하면 1회 재시도 후 명확한 에러.
+   - 모델별 추가 파라미터(예: `reasoning_effort`)는 `LLM_EXTRA_BODY`(JSON 문자열)로 받아 `extra_body`에 합친다.
 5. **컨텍스트 포맷**: `[근거 — 과거 승인 답변]` 아래에 `- (source) content`.
 
 **버릴 것**: `rag_search` 의존, 템플릿/지식 이중 구조, baseline 경로, 3b 전용 tier 분기, `IS_LOCAL` 문자열 매칭, 하드코딩된 `num_thread`.
@@ -177,45 +183,23 @@ GenerateResponse { candidates: Candidate[]; is_info_sufficient: boolean; insuffi
   담당자용 데스크톱은 이 API를 호출하지 않는다.
 - 편의를 위해 CLI도 제공: `pnpm seed:import <파일.xlsx> [--replace] [--dry-run]` (같은 서비스 로직 재사용).
 
-### 6-3. 모델 비교 (14B vs 32B)
-"14B로는 부족하고 최소 32B가 필요하다"를 **같은 조건의 객관적 지표**로 보여주기 위한 기능이다.
-- **요청별 모델 지정**: `POST /complaints/:id/generate`와 `/complaints/quick`에 선택 파라미터 `model`을 둔다.
-  `ALLOWED_MODELS`에 있는 값만 허용. 생략하면 `MODEL`. 사용한 모델명은 drafts에 저장하고 응답 봉투(`GenerateApiResponse.model`)와 SSE 이벤트에 포함한다
-  (계약 타입에는 넣지 않는다).
-- **비교 조건 고정**: 비교 시 검색 결과·프롬프트·temperature·max_tokens를 동일하게 한다. 같은 민원의 검색 결과를 한 번만 구해 두 모델에 같이 넣는다.
-- **같은 엔드포인트**: 두 모델 모두 같은 `OPENAI_BASE_URL`(같은 ollama 서버)에서 `model` 이름만 바꿔 호출한다.
-  하드웨어·런타임이 같아야 차이가 모델 크기 때문이라고 말할 수 있다.
-- **양자화 명시**: 모델 이름은 양자화까지 적은 정확한 태그로 지정한다(예: `qwen2.5:14b-instruct-q4_K_M`, `qwen2.5:32b-instruct-q4_K_M`).
-  두 모델의 양자화 수준이 같아야 한다. 결과 파일에 실제 태그를 기록한다.
-- **워밍업**: 모델 전환 시 서버가 모델을 다시 메모리에 올리느라 첫 호출이 느리다. 비교·시연 전에 모델별로 짧은 요청을 1회 보내 워밍업하고,
-  워밍업 호출은 시간 측정에서 제외한다(`pnpm bench:models --warmup`, 기본 켜짐).
-- **비교 세트**: `bench/complaints.xlsx`(합성 민원 10건 내외, 열: `id`, `content`, `expected_approach`(선택), `note`).
-  모델 차이가 드러나는 사례를 포함한다: 유예 시간 규칙, 정보 부족 민원, 요건 미충족 민원, 감정적 표현이 섞인 민원, 여러 요구가 섞인 민원.
-- **자동 점검 지표**(사람 판단 전에 기계적으로 측정, 민원·모델별 표):
-  - JSON 실패 / `finish_reason: length` 잘림 / 재시도 횟수
-  - 답변 문장 수 5개 초과 여부
-  - 메타 발화 패턴("규칙에 따라", "지시에 따라", "참고자료에 따르면" 등 목록은 설정 파일로)
-  - 한국어 외 문자 혼입(한자·영문 문장 등)
-  - "유예" 언급 문장에 "단속" 동시 등장(규칙 위반 의심)
-  - `used_sources`가 비었는데 `assumptions`도 빈 경우(근거 없는 답변 의심)
-  - `expected_approach`가 주어졌을 때 후보에 포함됐는지
-  - 단계별 소요 시간, 토큰 수, 초당 토큰
-- **결과물**: `output/bench.md`(모델별 요약 표 + 민원별 답변 나란히) / `output/bench.json`.
-- 같은 입력으로 **모델당 3회** 반복해 재현율로 표시한다(한 번 운 좋게 나온 결과로 판단하지 않기 위해).
-- 비교 결과를 보고 결론을 정한다. 14B가 대부분 통과하면 그 결과도 그대로 보고한다(결과에 맞춰 비교 세트를 고르지 않는다).
+### 6-3. 모델 비교 — 범위 제외
+- 모델 비교 기능(요청별 `model` 파라미터, `ALLOWED_MODELS`, `pnpm bench:models`, 비교 세트)은 **만들지 않는다**.
+  소형 모델(3b·7b)의 한계는 레거시 Python 실험에서 이미 확인했다.
+- 생성에 쓴 모델명은 drafts·generation_runs에 저장하고 `GenerateApiResponse.model`과 SSE 이벤트에 포함한다(계약 타입에는 넣지 않는다).
 
 ## 7. 환경변수 (`.env.example`)
 | 이름 | 기본값 | 설명 |
 |---|---|---|
 | `OPENAI_BASE_URL` | `http://localhost:11434/v1` | LLM 엔드포인트(OpenAI 호환) |
 | `OPENAI_API_KEY` | `ollama` | |
-| `MODEL` | `qwen2.5:32b-instruct-q4_K_M` | 기본 생성 모델. 외부 서버가 준비되기 전 개발 중에는 로컬 `qwen2.5:7b`(또는 `3b`)로 둔다 |
-| `ALLOWED_MODELS` | `qwen2.5:14b-instruct-q4_K_M,qwen2.5:32b-instruct-q4_K_M` | 요청별 모델 지정(6-3)에 허용할 목록. 이 밖의 값은 400. 실제 서버에 있는 태그로 맞출 것 |
+| `MODEL` | `qwen2.5:7b` | 생성 모델. 개발: 로컬 `qwen2.5:7b` / 시연: Ollama 클라우드 `gemma4:31b`(`OPENAI_BASE_URL=https://ollama.com/v1`, `OPENAI_API_KEY`=계정 키) |
 | `LLM_MAX_TOKENS` | `512` | 레거시 250은 3b 기준. 잘림 발생 시 로그 확인 |
 | `LLM_TEMPERATURE` | `0.3` | |
 | `LLM_TIMEOUT_MS` | `120000` | |
 | `LLM_CONCURRENCY` | `2` | CPU 전용 서버면 1 |
 | `OLLAMA_OPTIONS` | (없음) | JSON 문자열. 예: `{"keep_alive":-1,"num_ctx":4096,"num_thread":4}`. 설정 시에만 `extra_body`로 전달 |
+| `LLM_EXTRA_BODY` | (없음) | JSON 문자열. 모델별 추가 파라미터(예: `{"reasoning_effort":"low"}`). `extra_body`에 합친다 |
 | `EMBEDDING_BASE_URL` | `http://localhost:11434/v1` | LLM과 별도. `OPENAI_BASE_URL`로 대체하지 않는다 |
 | `EMBEDDING_MODEL` | `bge-m3` | 바꾸면 재임베딩 필요 |
 | `EMBEDDING_DIM` | `1024` | 벡터 컬럼 차원. 모델 출력과 다르면 시작 실패 |
@@ -223,6 +207,8 @@ GenerateResponse { candidates: Candidate[]; is_info_sufficient: boolean; insuffi
 | `SEARCH_TOP_K` | `3` | |
 | `SEARCH_HYBRID` | `false` | |
 | `DATABASE_URL` | `postgresql://app:app@localhost:5432/minwon` | docker-compose 기본값과 일치 |
+| `TEST_DATABASE_URL` | `postgresql://app:app@localhost:5433/minwon_test` | 테스트 전용 DB(docker-compose의 `db-test`) |
+| `PORT` | `3000` | API 포트 |
 | `CORS_ORIGINS` | `http://localhost:5173` | |
 | `COMPLAINT_MAX_CHARS` | `5000` | |
 | `REQUIRE_LOCAL` | `db,embedding` | 여기 적힌 구성요소가 로컬이 아니면 시작 중단. 운영 서버가 정해지면 `db,embedding,llm` |
@@ -242,7 +228,6 @@ GenerateResponse { candidates: Candidate[]; is_info_sufficient: boolean; insuffi
   `replace`가 seed만 지우고 sent 보존, `DEV_API_ENABLED=false`일 때 404, 키 불일치 시 401.
 - 파이프라인 통합 테스트(LLM·임베딩 mock) 1개.
 - **스모크 스크립트** `pnpm smoke`: 실제 엔드포인트로 접수 → 생성 → 선택·수정 → 승인 → 발송 → 같은 민원 재검색 시 방금 답변이 근거로 나오는지까지 확인.
-- **모델 비교 스크립트** `pnpm bench:models qwen2.5:14b,qwen2.5:32b`: 6-3의 비교 세트로 모델별 결과를 `output/bench.md`, `output/bench.json`에 저장.
 - **수동 확인(README에 체크리스트로 남길 것)**: 합성 민원 3건을 실제 모델로 돌려 답변 길이, 메타 발화("규칙에 따라~"),
   "유예 시간에 단속" 오답, 다른 언어 혼입 여부 확인.
 
@@ -256,7 +241,7 @@ GenerateResponse { candidates: Candidate[]; is_info_sufficient: boolean; insuffi
 2. `mock` 검색 + 생성 파이프라인 + `/complaints` API + SSE.
 3. 임베딩 + `vector` 검색 + 발송 시 코퍼스 추가.
 4. 시드 Excel API + CLI.
-5. 스모크 스크립트, 모델 비교(6-3), README(실행 방법, 환경변수, 수동 확인 체크리스트).
+5. 스모크 스크립트, README(실행 방법, 환경변수, 수동 확인 체크리스트).
 - 각 단계가 끝날 때마다 테스트를 돌리고 결과를 보고한다.
 - **완료 기준**: `pnpm test` 전부 통과, `pnpm smoke` 성공, README대로 새 환경에서 실행 가능.
 - **로컬 증명 기준**
@@ -273,5 +258,5 @@ GenerateResponse { candidates: Candidate[]; is_info_sufficient: boolean; insuffi
 - pgvector 외의 벡터 저장소(메모리 계산, 별도 벡터DB 서버 등)로 임의 대체하지 말 것.
 
 ## 12. 미확정 (임의로 정하지 말고 환경변수/설정으로 열어 둘 것)
-- 운영 서버 사양(GPU 유무, RAM)과 그에 맞는 모델. 시연은 외부 엔드포인트의 `qwen2.5:32b` 기준, 비교 대상 `qwen2.5:14b`.
+- 운영 서버 사양(GPU 유무, RAM)과 그에 맞는 모델. 시연은 Ollama 클라우드 `gemma4:31b`.
 - 시드 답변의 실제 내용(합성). Excel 양식에 열 추가가 필요한지(예: 접근 유형 태그).
