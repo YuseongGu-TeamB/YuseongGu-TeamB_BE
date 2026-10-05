@@ -121,7 +121,7 @@ export const STAGE2_SYSTEM =
 **할 일**
 1. ${EVIDENCE} 후보 중 이 민원과 직접 관련된 것만 선별한다. 후보에 있다는 이유로 억지로 쓰지 않는다.
 2. 쓸 만한 자료가 없으면 selected_sources를 빈 배열로 둔다.
-3. 아래 접근 유형 중 이 민원에 적합한 것을 1~3개 고른다. 서로 실질적으로 다른 것만 고르고,
+3. 아래 접근 유형 중 이 민원에 적합한 것을 2~3개 고른다. 서로 실질적으로 다른 것만 고르고,
    표현만 다른 조합은 금지한다.
 
 **접근 유형**
@@ -135,11 +135,11 @@ export function stage2Schema(sources: string[]): Record<string, unknown> {
       selected_sources: idField(sources, EVIDENCE),
       approaches: {
         type: 'array',
-        minItems: 1,
+        minItems: 2,
         maxItems: 3,
         items: { type: 'string', enum: presetIds() },
         description:
-          '이 민원에 적합한 접근 유형 1~3개. 서로 실질적으로 다른 접근만 고르고, ' +
+          '이 민원에 적합한 접근 유형 2~3개. 서로 실질적으로 다른 접근만 고르고, ' +
           '표현만 다른 조합은 금지한다. 접근 유형과 선택 기준:\n' +
           presetLines(),
       },

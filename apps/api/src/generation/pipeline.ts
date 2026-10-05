@@ -153,7 +153,7 @@ export class GenerationPipeline {
     return { value: r.data, ms: r.ms, tokens: r.tokens };
   }
 
-  /** 3. 근거 선별 + 접근 유형 1~3개 결정 */
+  /** 3. 근거 선별 + 접근 유형 2~3개 결정(모델이 1개만 내면 그대로 받는다) */
   async select(complaint: string, context: string, analysis: Analysis, sources: string[], model: string) {
     const r = await this.llm.call({
       stage: 'select',
