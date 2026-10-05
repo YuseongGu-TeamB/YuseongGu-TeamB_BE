@@ -45,11 +45,17 @@
   field-sizing: content;
   min-height: 40vh;
 }
-/* 후보 카드: KRDS structured list(3열 그리드)를 가로 한 줄로 흘리고, 3개를 넘으면 옆으로 넘겨 본다 */
+/*
+ * 후보 카드: KRDS structured list(3열 그리드)를 가로 한 줄로 흘린다.
+ * --app-cards-visible(= 카드 수, 최대 3)만큼 폭을 나눠 꽉 채우고, 3개를 넘으면 옆으로 넘겨 본다.
+ */
 .app-cards {
+  --app-cards-visible: 3;
   grid-template-columns: none;
   grid-auto-flow: column;
-  grid-auto-columns: calc((100% - 2 * var(--krds-structured-list--wrap-gap)) / 3);
+  grid-auto-columns: calc(
+    (100% - (var(--app-cards-visible) - 1) * var(--krds-structured-list--wrap-gap)) / var(--app-cards-visible)
+  );
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   padding-bottom: var(--krds-padding-3);

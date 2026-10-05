@@ -81,7 +81,11 @@ export function CandidatesScreen({ complaint, result, dispatch }: Props) {
         )}
 
         {!regenerating && (candidates.length > 0 || result.failed.length > 0) && (
-          <ul className="krds-structured-list app-cards" aria-label="답변 후보">
+          <ul
+            className="krds-structured-list app-cards"
+            aria-label="답변 후보"
+            style={{ ['--app-cards-visible' as string]: Math.min(3, candidates.length + result.failed.length) }}
+          >
             {candidates.map((c, i) => {
               const draft = result.drafts[i];
               const titleId = `cand-${draft.draft_id}`;
