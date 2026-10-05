@@ -147,6 +147,14 @@ describe('개발자 시드 API (/dev)', () => {
     expect(await prisma.corpusEntry.count()).toBe(0);
   });
 
+  it('최대 2,000행(긴 답변)도 한 번에 반영된다 — 트랜잭션 제한 시간 회귀', async () => {
+    await upload(await xlsx([['', '기존 시드']])).expect(200);
+    const rows = Array.from({ length: 2000 }, (_, i) => ['', `답변 ${i} ` + '가'.repeat(500)]);
+    const r = await upload(await xlsx(rows), '?mode=replace').expect(200);
+    expect(r.body).toMatchObject({ total: 2000, inserted: 2000, skipped: 0, errors: [] });
+    expect(await prisma.corpusEntry.count()).toBe(2000);
+  }, 120_000);
+
   it('파일이 없으면 400', async () => {
     await http().post('/dev/seed/import').set('X-Dev-Key', KEY).expect(400);
   });

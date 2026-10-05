@@ -9,6 +9,8 @@ import { PrismaService } from '../prisma/prisma.service';
 /** backend-spec 6-2 제한 */
 export const SEED_LIMITS = { fileBytes: 5 * 1024 * 1024, rows: 2000, contentChars: 2000 } as const;
 const EMBED_BATCH = 32;
+/** 시드 반영 트랜잭션 제한 시간(Prisma 기본 5초로는 수백 행에서 넘친다) */
+const SEED_TX_TIMEOUT_MS = 120_000;
 
 /** 파일 자체가 잘못된 경우(형식·헤더·용량·행 수) → 400 */
 export class SeedFileError extends Error {
@@ -164,17 +166,18 @@ export class SeedService {
     const updatedRows = toUpdate.filter((r) => embedded.has(r.row));
 
     // 5) 한 트랜잭션에서 반영 (replace는 origin='seed'만 지우고 다시 넣는다)
-    await this.prisma.$transaction(async (tx) => {
-      if (opts.mode === 'replace') await this.corpus.deleteAllSeeds(tx);
-      for (const r of [...insertedRows, ...updatedRows]) {
-        await this.corpus.upsertSeed(tx, {
-          source: r.source,
-          content: r.content,
-          embedding: embedded.get(r.row)!,
-          embeddingModel: this.embedding.model,
-        });
-      }
-    });
+    //    임베딩은 이미 끝났으므로 DB 쓰기만 한다. 최대 2,000행도 넉넉히 끝나도록 제한 시간을 늘린다.
+    await this.prisma.$transaction(
+      async (tx) => {
+        if (opts.mode === 'replace') await this.corpus.deleteAllSeeds(tx);
+        await this.corpus.upsertSeeds(
+          tx,
+          [...insertedRows, ...updatedRows].map((r) => ({ source: r.source, content: r.content, embedding: embedded.get(r.row)! })),
+          this.embedding.model,
+        );
+      },
+      { maxWait: 10_000, timeout: SEED_TX_TIMEOUT_MS },
+    );
     const out = result(insertedRows.length, updatedRows.length);
     this.logger.log(
       `import mode=${opts.mode} total=${out.total} inserted=${out.inserted} updated=${out.updated} skipped=${out.skipped} errors=${out.errors.length}`,

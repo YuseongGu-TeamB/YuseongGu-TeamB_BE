@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { SearchResult } from '@minwon/contracts';
 import pgvector from 'pgvector';
+import { Prisma } from '../generated/prisma/client';
 import { PrismaService, Tx } from '../prisma/prisma.service';
 
 export interface NewSentEntry {
@@ -12,6 +13,9 @@ export interface NewSentEntry {
 
 /** 발송 답변의 source. 형식은 contracts의 SOURCE_REGEX를 따른다(uuid 36자 + 2자). */
 export const sentSource = (complaintId: string): string => `A-${complaintId}`;
+
+/** 시드 upsert를 한 쿼리에 묶는 행 수 */
+export const SEED_UPSERT_BATCH = 100;
 
 /** 하이브리드 점수 = 벡터 유사도 × VECTOR_WEIGHT + trigram 유사도 × TRGM_WEIGHT */
 export const HYBRID_VECTOR_WEIGHT = 0.7;
@@ -87,16 +91,33 @@ export class CorpusRepository {
     return Number(row.max ?? 0);
   }
 
-  /** 시드 추가·갱신. 같은 source의 sent 항목은 절대 덮어쓰지 않는다(WHERE origin='seed'). */
-  async upsertSeed(tx: Tx, row: { source: string; content: string; embedding: number[]; embeddingModel: string }) {
-    const n = await tx.$executeRaw`
-      INSERT INTO corpus_entries (source, content, origin, embedding, embedding_model)
-      VALUES (${row.source}, ${row.content}, 'seed', ${pgvector.toSql(row.embedding)}::vector, ${row.embeddingModel})
-      ON CONFLICT (source) DO UPDATE
-        SET content = EXCLUDED.content, embedding = EXCLUDED.embedding,
-            embedding_model = EXCLUDED.embedding_model, updated_at = now()
-        WHERE corpus_entries.origin = 'seed'`;
-    if (n !== 1) throw new Error(`시드가 아닌 항목과 source가 겹칩니다: ${row.source}`);
+  /**
+   * 시드 추가·갱신. 같은 source의 sent 항목은 절대 덮어쓰지 않는다(WHERE origin='seed').
+   * 행마다 쿼리를 보내면 수백 행에서 트랜잭션 시간을 넘기므로 SEED_UPSERT_BATCH행씩 묶어 보낸다.
+   * (rows 안의 source는 서로 달라야 한다 — 파일 검증 단계에서 중복을 걸러 둔다)
+   */
+  async upsertSeeds(tx: Tx, rows: { source: string; content: string; embedding: number[] }[], embeddingModel: string) {
+    for (let i = 0; i < rows.length; i += SEED_UPSERT_BATCH) {
+      const batch = rows.slice(i, i + SEED_UPSERT_BATCH);
+      const values = Prisma.join(
+        batch.map(
+          (r) => Prisma.sql`(${r.source}, ${r.content}, 'seed', ${pgvector.toSql(r.embedding)}::vector, ${embeddingModel})`,
+        ),
+      );
+      const written = await tx.$queryRaw<{ source: string }[]>`
+        INSERT INTO corpus_entries (source, content, origin, embedding, embedding_model)
+        VALUES ${values}
+        ON CONFLICT (source) DO UPDATE
+          SET content = EXCLUDED.content, embedding = EXCLUDED.embedding,
+              embedding_model = EXCLUDED.embedding_model, updated_at = now()
+          WHERE corpus_entries.origin = 'seed'
+        RETURNING source`;
+      if (written.length !== batch.length) {
+        const ok = new Set(written.map((w) => w.source));
+        const blocked = batch.filter((r) => !ok.has(r.source)).map((r) => r.source);
+        throw new Error(`시드가 아닌 항목과 source가 겹칩니다: ${blocked.join(', ')}`);
+      }
+    }
   }
 
   /** mode=replace: origin='seed'만 지운다. 발송으로 쌓인 항목은 건드리지 않는다. */
