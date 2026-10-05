@@ -5,6 +5,7 @@ import { Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { config } from 'dotenv';
 import { EnvModule } from '../config/config.module';
+import { assertDatabaseReachable } from '../prisma/db-check';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SeedModule } from '../seed/seed.module';
 import { SeedService } from '../seed/seed.service';
@@ -33,6 +34,7 @@ async function main(): Promise<number> {
   const mode = args.includes('--replace') ? 'replace' : 'append';
   const dryRun = args.includes('--dry-run');
 
+  await assertDatabaseReachable();
   const app = await NestFactory.createApplicationContext(SeedCliModule, { logger: ['error', 'warn'] });
   try {
     const result = await app.get(SeedService).import(await readFile(file), { mode, dryRun });
