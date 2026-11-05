@@ -47,6 +47,8 @@ async function main(): Promise<number> {
   }
 }
 
+//엘라스틱 서치 (하이브리드 서치), 리랭커 <- 도입 (결과물 재정렬)
+
 main().then(
   (code) => process.exit(code),
   (e: unknown) => {
