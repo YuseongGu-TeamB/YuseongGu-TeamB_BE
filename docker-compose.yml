@@ -1,4 +1,58 @@
 services:
+
+  ollama:
+    image: ollama/ollama:0.40.14
+    environment:
+      OLLAMA_KEEP_ALIVE: "-1"
+      OLLAMA_CONTEXT_LENGTH: "8192"
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "2"
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  migrate:
+    image: yuseong-api
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    command: ["pnpm", "exec", "prisma", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: postgresql://app:app@db:5432/minwon
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    image: yuseong-api
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://app:app@db:5432/minwon
+      OPENAI_BASE_URL: http://ollama:11434/v1
+      OPENAI_API_KEY: ollama
+      MODEL: ${BENCH_MODEL:-qwen2.5:3b}
+      EMBEDDING_BASE_URL: http://ollama:11434/v1
+      LLM_CONCURRENCY: "1"
+      LLM_TIMEOUT_MS: ${BENCH_TIMEOUT_MS:-600000}
+      REQUIRE_LOCAL: db,embedding,llm
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./bench:/data:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
   # 개발·시연용 DB (RDB + 벡터DB)
   db:
     image: pgvector/pgvector:pg17
@@ -35,3 +89,14 @@ services:
 
 volumes:
   pgdata:
+  ollama-models:
+
+#MODEL을 안쓰고 BENCH_MODEL을 쓰는 이유는 Compose는 루트 .env를 자동으로 읽는다.
+# 지금 .env의 MODEL은 gemma4:31b라서 그대로 쓰면 노트북에서 gemma를 올리려고 한다
+
+#Ollama 포트를 열지 않는 이유는 컨테이너끼리는 서비스 이름으로 통신하기 때문에
+#노트북에 설치된 Ollama와 포트가 충돌하는 일을 막기 위해
+
+#OLLAMA_OPTIONS 대신 컨테이너 환경변수를 쓰는 이유는 앱의 OLLAMA_OPTIONS는
+#/v1 요청 본문에 실린다. 여기서 값이 적용되는지 확인하지 못해서
+#실측 조건은 서버 환경변수로 고정하고, 이따가 ollama ps로 확인할 것
